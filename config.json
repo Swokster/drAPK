@@ -1,0 +1,87 @@
+{
+    "versions_dir": "",
+    "java": "",
+    "apktool": "",
+    "apksigner": "",
+    "zipalign": "",
+    "corona-archiver": "",
+    "unluac": "",
+    "last_version": "",
+    "last_keystore": "",
+    "last_keystore_password": "",
+    "last_alias": "",
+    "buttons_shape": [
+        2,
+        4
+    ],
+    "bindings": [
+        {
+            "button": 1,
+            "tool": "UnAPK",
+            "name": "Unpack\nAPK"
+        },
+        {
+            "button": 2,
+            "tool": "deCAR",
+            "name": "Decompile\nresource.car"
+        },
+        {
+            "button": 3,
+            "tool": "Unluac_All",
+            "name": "Unluac\nLU"
+        },
+        {
+            "button": 4,
+            "tool": "Unluac",
+            "name": "Unluac\nINPUT"
+        },
+        {
+            "button": 5,
+            "tool": "Pack",
+            "name": "Pack\nSign"
+        },
+        {
+            "button": 6,
+            "tool": "ToCAR",
+            "name": "Compile\nresource.car"
+        },
+        {
+            "button": 7,
+            "tool": "Luac_All",
+            "name": "Luac\nEDITING"
+        },
+        {
+            "button": 8,
+            "tool": "Luac",
+            "name": "Luac\nINPUT"
+        }
+    ],
+    "themes": {
+        "light": {
+            "name": "Light",
+            "background": "#FFFFFF",
+            "text_color": "#000000",
+            "button_text": "#000000",
+            "scroll_text": "#000000"
+        },
+        "dark": {
+            "name": "Dark",
+            "background": "#2B2B2B",
+            "text_color": "#FFFFFF",
+            "button_text": "#FFFFFF",
+            "scroll_text": "#CCCCCC"
+        },
+        "custom": {
+            "name": "Custom",
+            "background": "#1E3A5F",
+            "text_color": "#FFFFFF",
+            "button_text": "#FFFFFF",
+            "scroll_text": "#E0E0E0"
+        }
+    },
+    "current_theme": "dark",
+    "font": {
+        "family": "Arial",
+        "size": 10
+    }
+}
