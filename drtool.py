@@ -953,8 +953,12 @@ class KeystoreManager(APKTool):
         password_entry.pack(pady=5)
 
         save_var = tk.BooleanVar(value=True)
+
+
         tk.Checkbutton(dialog, text="Save password", variable=save_var,
-                       background=self.theme['bg_color'], foreground=self.theme['text_color']).pack(pady=5)
+                       background=self.theme['bg_color'],
+                       selectcolor=self.theme['bg_color'],
+                       foreground=self.theme['text_color']).pack(pady=5)
 
         def on_ok():
             password = password_var.get().strip()
@@ -1093,7 +1097,6 @@ class KeystoreManager(APKTool):
         """Передаем callback и генератору"""
         super().set_log_callback(callback)
         self.generator.set_log_callback(callback)
-
 
     def message(self):
         if self.current_keystore_path:

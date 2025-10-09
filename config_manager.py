@@ -14,36 +14,42 @@ class ConfigManager:
         },
         "java": {
             "name": "Java Runtime",
+            "location": "JDK/jdk-17.0.16+8/bin/java.exe",
             "description": "Java executable (java.exe)",
             "file_types": [("Java executable", "java.exe"), ("All files", "*.*")],
             "required": True
         },
         "apktool": {
             "name": "APKTool",
+            "location": "APKTool/apktool.jar",
             "description": "APKTool JAR file",
             "file_types": [("JAR files", "*.jar"), ("All files", "*.*")],
             "required": True
         },
         "apksigner": {
             "name": "APKSigner",
+            "location": "AndroidSDK/build-tools/34.0.0/apksigner.bat",
             "description": "APKSigner tool",
             "file_types": [("APKSigner", "apksigner.bat"), ("All files", "*.*")],
             "required": True
         },
         "zipalign": {
             "name": "Zipalign",
+            "location": "AndroidSDK/build-tools/34.0.0/zipalign.exe",
             "description": "Zipalign tool",
             "file_types": [("Zipalign", "zipalign.exe"), ("All files", "*.*")],
             "required": True
         },
         "unluac": {
             "name": "Unluac",
+            "location": "Unluac/unluac.jar",
             "description": "Unluac decompiler JAR",
             "file_types": [("JAR files", "*.jar"), ("All files", "*.*")],
             "required": True
         },
         "corona-archiver": {
             "name": "Corona Archiver",
+            "location": "Corona_Archiver/corona-archiver-master/corona-archiver.py",
             "description": "Corona Archiver Python script",
             "file_types": [("Python files", "*.py"), ("All files", "*.*")],
             "required": True
@@ -53,11 +59,52 @@ class ConfigManager:
     def __init__(self, config_file="config.json"):
         self.config_file = config_file
         self.data = self._load()
-        self.main_gui = None
-        # Get project root path (where config_manager.py is located)
         self.project_root = os.path.dirname(os.path.abspath(__file__))
         self.utils_dir = os.path.join(self.project_root, "utils")
         self.initial_dir = self.utils_dir
+
+        # Create root window if it doesn't exist
+        self._root = None
+        # Event system for GUI updates
+        self._event_listeners = {}
+
+    # === Event System ===
+    def on(self, event_name, callback):
+        """Register event listener"""
+        if event_name not in self._event_listeners:
+            self._event_listeners[event_name] = []
+        self._event_listeners[event_name].append(callback)
+
+    def off(self, event_name, callback):
+        """Unregister event listener"""
+        if event_name in self._event_listeners:
+            if callback in self._event_listeners[event_name]:
+                self._event_listeners[event_name].remove(callback)
+
+    def emit(self, event_name, data=None):
+        """Emit event to all listeners"""
+        if event_name in self._event_listeners:
+            for callback in self._event_listeners[event_name]:
+                try:
+                    callback(data)
+                except Exception as e:
+                    print(f"Error in event listener: {e}")
+    #
+
+    def _get_root(self):
+        """Get or create root Tkinter window"""
+        try:
+            # Try to get existing root
+            root = tk._default_root
+            if root and root.winfo_exists():
+                return root
+        except:
+            pass
+
+        # Create new root
+        self._root = tk.Tk()
+        self._root.withdraw()  # Hide the root window
+        return self._root
 
     def _load(self):
         """Load config from file or return default dict."""
@@ -66,7 +113,7 @@ class ConfigManager:
                 with open(self.config_file, "r", encoding="utf-8") as f:
                     return json.load(f)
             except Exception as e:
-                messagebox.showerror("Config error", f"Failed to load config: {e}")
+                self._show_error(f"Failed to load config: {e}")
                 return {}
         return {}
 
@@ -76,7 +123,7 @@ class ConfigManager:
             with open(self.config_file, "w", encoding="utf-8") as f:
                 json.dump(self.data, f, indent=4)
         except Exception as e:
-            messagebox.showerror("Config error", f"Failed to save config: {e}")
+            self._show_error(f"Failed to save config: {e}")
 
     def get(self, key, default=None):
         """Get value from config."""
@@ -146,24 +193,22 @@ class ConfigManager:
             return hex_color
 
     # === GUI part ===
-    def open_config_window(self, parent):
+    def open_config_window(self):
         """Open configuration window with tabs/buttons."""
-        window = tk.Toplevel(parent)
+        root = self._get_root()
+        window = tk.Toplevel(root)
         window.title("Configuration")
 
-        parent_x = parent.winfo_x()
-        parent_y = parent.winfo_y()
-        parent_width = parent.winfo_width()
-        parent_height = parent.winfo_height()
-
         window_width = 150
-        window_height = 130
+        window_height = 170
 
-        x = parent_x + (parent_width - window_width) // 2
-        y = parent_y + (parent_height - window_height) // 2
+        # Center window on screen
+        screen_width = window.winfo_screenwidth()
+        screen_height = window.winfo_screenheight()
+        x = (screen_width - window_width) // 2
+        y = (screen_height - window_height) // 2
 
         window.geometry(f"{window_width}x{window_height}+{x}+{y}")
-
         window.grab_set()
 
         # Get colors from config
@@ -178,31 +223,44 @@ class ConfigManager:
 
         btn_themes = tk.Button(frame, text="Themes", width=btn_width,
                                background=lighter_color, foreground=button_text_color,
-                               command=lambda: [window.destroy(), self.open_themes_window(parent)])
+                               command=lambda: [window.destroy(), self.open_themes_window()])
         btn_themes.pack(pady=5)
 
         btn_paths = tk.Button(frame, text="Paths", width=btn_width,
                               background=lighter_color, foreground=button_text_color,
-                              command=lambda: [window.destroy(), self._open_paths_window(parent)])
+                              command=lambda: [window.destroy(), self._open_paths_window()])
         btn_paths.pack(pady=5)
 
-        btn_reset = tk.Button(frame, text="Reset to Defaults", width=btn_width,
+        btn_open_config = tk.Button(frame, text="Reset to Defaults", width=btn_width,
                               background=lighter_color, foreground=button_text_color,
-                              command=lambda: [window.destroy(),self.reset_to_defaults()])
+                              command=lambda: [window.destroy(), self.reset_to_defaults()])
+        btn_open_config.pack(pady=5)
+
+        btn_reset = tk.Button(frame, text="Open Config", width=btn_width,
+                              background=lighter_color, foreground=button_text_color,
+                              command=lambda: [window.destroy(), self._open_config_in_editor()])
         btn_reset.pack(pady=5)
 
-    def _open_paths_window(self, parent):
+    def _open_paths_window(self):
         """Sub-window for selecting paths."""
-        window = tk.Toplevel(parent)  # parent - original main window
+        root = self._get_root()
+        window = tk.Toplevel(root)
         window.title("Tools paths")
         window.geometry("500x400")
         window.grab_set()
+
+        # Center window on screen
+        window.update_idletasks()
+        screen_width = window.winfo_screenwidth()
+        screen_height = window.winfo_screenheight()
+        x = (screen_width - window.winfo_width()) // 2
+        y = (screen_height - window.winfo_height()) // 2
+        window.geometry(f"+{x}+{y}")
 
         # Get colors directly from config
         bg_color, lighter_color, text_color, button_text_color, scroll_text_color = self.get_theme_colors()
         window.configure(background=bg_color)
 
-        # Remove padding from Frame, use padx/pady in pack
         frame = tk.Frame(window, background=bg_color)
         frame.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -228,22 +286,41 @@ class ConfigManager:
                                    command=lambda t=tool, var=entry_var: self._browse_path(t, var))
             browse.pack(side="left")
 
-        save_btn = tk.Button(frame, text="Save", background=lighter_color, foreground=button_text_color,
-                             command=lambda: self._save_paths(window))
-        save_btn.pack(pady=10)
+        button_frame = tk.Frame(frame, background=bg_color)
+        button_frame.pack(fill="x", pady=10)
 
-    def open_themes_window(self, parent):
+        # Auto-detect button
+        auto_detect_btn = tk.Button(button_frame, text="Auto\nDetect", width=8, height=2,
+                                    background=lighter_color, foreground=button_text_color,
+                                    command=lambda: self.check_and_fix_paths(window))
+        auto_detect_btn.pack(side="left", padx=5)
+
+        # Save button
+        save_btn = tk.Button(button_frame, text="Save", background=lighter_color, foreground=button_text_color,
+                             command=lambda: self._save_paths(window))
+        save_btn.pack(side="right", padx=5)
+
+    def open_themes_window(self):
         """Theme management window"""
-        window = tk.Toplevel(parent)
+        root = self._get_root()
+        window = tk.Toplevel(root)
         window.title("Themes Configuration")
         window.geometry("250x200")
         window.grab_set()
+
+        # Center window on screen
+        window.update_idletasks()
+        screen_width = window.winfo_screenwidth()
+        screen_height = window.winfo_screenheight()
+        x = (screen_width - window.winfo_width()) // 2
+        y = (screen_height - window.winfo_height()) // 2
+        window.geometry(f"+{x}+{y}")
 
         themes = self.get("themes", {})
         current_theme = self.get("current_theme", "light")
         font_settings = self.get("font", {"family": "Arial", "size": 10})
 
-        theme_manager = ThemeManager(window, themes, current_theme, font_settings, self, self.main_gui)
+        theme_manager = ThemeManager(window, themes, current_theme, font_settings, self)
         theme_manager.pack(fill="both", expand=True, padx=10, pady=10)
 
     def _browse_path(self, tool, var):
@@ -276,7 +353,11 @@ class ConfigManager:
         """Save chosen paths to config."""
         for tool, var in self.entries.items():
             self.set(tool, var.get())
-        messagebox.showinfo("Saved", "Paths updated successfully")
+        self._show_info("Paths updated successfully")
+
+        # Emit event for GUI update
+        self.emit("config_updated", {"type": "paths"})
+
         window.destroy()
 
     def get_theme_colors(self):
@@ -289,6 +370,7 @@ class ConfigManager:
         """Reset config to default values"""
         if not self._show_reset_warning():
             return False
+
         default_config = {
             "versions_dir": "",
             "java": "",
@@ -346,6 +428,11 @@ class ConfigManager:
 
         self.data = default_config
         self.save()
+
+        # Emit event after reset
+        self.emit("config_updated", {"type": "reset"})
+
+        self._show_info("Configuration has been reset to default values")
         return True
 
     def _show_reset_warning(self):
@@ -359,14 +446,292 @@ class ConfigManager:
         )
         return result
 
+    def set_default_utils(self, location=None):
+        """Set default paths based on hardcoded location with file existence check"""
+        if location is None:
+            location = self.utils_dir
+
+        found_paths = {}
+
+        for tool, config in self.TOOLS_CONFIG.items():
+            # Skip tools without location field and versions_dir
+            if tool == "versions_dir" or "location" not in config:
+                continue
+
+            expected_path = os.path.join(location, config["location"])
+            # Check if file exists at expected path
+            if os.path.exists(expected_path):
+                found_paths[tool] = expected_path
+            else:
+                # Try to find file by base name in specified directory
+                base_dir = os.path.dirname(expected_path)
+                base_name = os.path.basename(expected_path)
+
+                if os.path.exists(base_dir):
+                    for file in os.listdir(base_dir):
+                        file_path = os.path.join(base_dir, file)
+                        if os.path.isfile(file_path):
+                            # Check by extension and keywords
+                            if self._is_matching_file(tool, file, base_name):
+                                found_paths[tool] = file_path
+                                break
+
+        # Save found paths to config
+        for tool, path in found_paths.items():
+            self.set(tool, path)
+
+        return found_paths
+
+    def _is_matching_file(self, tool, filename, expected_base):
+        """Check if file matches the specified tool"""
+        expected_ext = os.path.splitext(expected_base)[1].lower()
+        actual_ext = os.path.splitext(filename)[1].lower()
+
+        # First check by extension
+        if expected_ext and actual_ext != expected_ext:
+            return False
+
+        # Then by keywords in filename
+        tool_keywords = {
+            "java": ["java"],
+            "apktool": ["apktool"],
+            "apksigner": ["apksigner"],
+            "zipalign": ["zipalign"],
+            "unluac": ["unluac"],
+            "corona-archiver": ["corona", "archiver"]
+        }
+
+        if tool in tool_keywords:
+            filename_lower = filename.lower()
+            return any(keyword in filename_lower for keyword in tool_keywords[tool])
+
+        return True
+
+    def set_hardcoded_defaults(self, location=None):
+        """Set hardcoded paths without checking file existence"""
+        if location is None:
+            location = self.utils_dir
+
+        for tool, config in self.TOOLS_CONFIG.items():
+            # Skip tools without location field and versions_dir
+            if tool != "versions_dir" and "location" in config:
+                expected_path = os.path.join(location, config["location"])
+                self.set(tool, expected_path)
+
+        return True
+
+    def check_and_fix_paths(self, parent_window=None):
+        """Check config paths and offer automatic fixing options"""
+        missing_tools = []
+        invalid_paths = []
+
+        # Check each tool from TOOLS_CONFIG
+        for tool, config in self.TOOLS_CONFIG.items():
+            # Skip tools without location field
+            if "location" not in config and tool != "versions_dir":
+                continue
+
+            path = self.get(tool, "")
+
+            if not path:
+                missing_tools.append(config["name"])
+            elif not os.path.exists(path):
+                invalid_paths.append(f"{config['name']}: {path}")
+
+        # If there are path problems
+        if missing_tools or invalid_paths:
+            problems = []
+            if missing_tools:
+                problems.append("Not configured: " + ", ".join(missing_tools))
+            if invalid_paths:
+                problems.append("Invalid paths:\n- " + "\n- ".join(invalid_paths))
+
+            problem_text = "\n".join(problems)
+
+            # Ask user about automatic fixing options
+            choice = messagebox.askyesnocancel(
+                "Path Problems",
+                f"Found problems with tool paths:\n\n{problem_text}\n\n"
+                "Choose automatic setup option:\n\n"
+                "• YES - Auto-search (intelligent tool search)\n"
+                "• NO - Default paths (hardcoded paths)\n"
+                "• Cancel - Manual setup",
+                icon="warning"
+            )
+
+            if choice is True:  # YES - Auto-search
+                found = self.set_default_utils()
+                self._show_auto_detect_result(found, "Auto-search")
+
+            elif choice is False:  # NO - Hardcoded paths
+                self.set_hardcoded_defaults()
+                found = {tool: self.get(tool, "") for tool in self.TOOLS_CONFIG.keys()
+                         if tool != "versions_dir" and "location" in self.TOOLS_CONFIG[tool]}
+                self._show_auto_detect_result(found, "Default Paths")
+
+            # Reload paths window if not Cancel
+            if choice is not None and parent_window and hasattr(parent_window, 'destroy'):
+                parent_window.destroy()
+                self._open_paths_window()
+
+            return choice is not None
+
+        else:
+            self._show_info("All paths are configured correctly!")
+            return True
+
+    def _show_auto_detect_result(self, found_paths, method_name):
+        """Show result of automatic setup"""
+        report = []
+        for tool, config in self.TOOLS_CONFIG.items():
+            # Skip tools without location field
+            if "location" not in config and tool != "versions_dir":
+                continue
+
+            path = self.get(tool, "")
+            if path and os.path.exists(path):
+                report.append(f"✓ {config['name']}")
+            else:
+                report.append(f"✗ {config['name']} (not found)")
+
+        self._show_info(
+            f"{method_name} - Result\n\nAutomatic setup result:\n\n" + "\n".join(report)
+        )
+
+    def _show_error(self, message):
+        """Show error message"""
+        root = self._get_root()
+        messagebox.showerror("Config error", message, parent=root)
+
+    def _show_info(self, message):
+        """Show info message"""
+        root = self._get_root()
+        messagebox.showinfo("Config", message, parent=root)
+
+    def _open_config_in_editor(self):
+        """Открыть config.json в текстовом редакторе"""
+        try:
+            if os.path.exists(self.config_file):
+                # Для Windows
+                if os.name == 'nt':
+                    os.system(f'notepad "{self.config_file}"')
+                # Для Linux
+                elif os.name == 'posix':
+                    os.system(f'xdg-open "{self.config_file}"')
+                # Для Mac
+                else:
+                    os.system(f'open "{self.config_file}"')
+            else:
+                self._show_info("Config file not found")
+        except Exception as e:
+            self._show_error(f"Failed to open config: {e}")
+
+    # Stand-Alone run
+    def run_standalone(self):
+        """Запуск конфигуратора как самостоятельного приложения"""
+        root = self._get_root()
+        root.deiconify()  # Показываем окно
+        root.title("Config Manager - Standalone")
+
+        # Создаем главное окно с кнопкой Config
+        self._create_standalone_gui(root)
+
+        root.mainloop()
+
+    def _create_standalone_gui(self, root):
+        """Создание GUI для standalone режима"""
+        # Получаем цвета темы
+        bg_color, lighter_color, text_color, button_text_color, scroll_text_color = self.get_theme_colors()
+
+        # Настраиваем главное окно
+        root.configure(background=bg_color)
+        root.geometry("300x200")
+
+        # Центрируем окно
+        root.update_idletasks()
+        screen_width = root.winfo_screenwidth()
+        screen_height = root.winfo_screenheight()
+        x = (screen_width - root.winfo_width()) // 2
+        y = (screen_height - root.winfo_height()) // 2
+        root.geometry(f"+{x}+{y}")
+
+        # Создаем фрейм
+        frame = tk.Frame(root, background=bg_color)
+        frame.pack(fill="both", expand=True, padx=20, pady=20)
+
+        # Заголовок
+        title_label = tk.Label(
+            frame,
+            text="Configuration Manager",
+            font=("Arial", 14, "bold"),
+            background=bg_color,
+            foreground=text_color
+        )
+        title_label.pack(pady=(0, 20))
+
+        # Кнопка Config (как в основном GUI)
+        config_btn = tk.Button(
+            frame,
+            text="Config",
+            command=self.open_config_window,
+            width=15,
+            height=2,
+            background=lighter_color,
+            foreground=button_text_color,
+            activebackground=lighter_color,
+            activeforeground=button_text_color
+        )
+        config_btn.pack(pady=10)
+
+        # Кнопка выхода
+        exit_btn = tk.Button(
+            frame,
+            text="Exit",
+            command=root.destroy,
+            width=15,
+            height=2,
+            background=lighter_color,
+            foreground=button_text_color,
+            activebackground=lighter_color,
+            activeforeground=button_text_color
+        )
+        exit_btn.pack(pady=10)
+
+        # Статусная строка
+        status_label = tk.Label(
+            frame,
+            text="Standalone mode",
+            font=("Arial", 8),
+            background=bg_color,
+            foreground=text_color
+        )
+        status_label.pack(side="bottom", pady=(10, 0))
+
+    def _open_config_in_editor(self):
+        """Открыть config.json в текстовом редакторе"""
+        try:
+            if os.path.exists(self.config_file):
+                # Для Windows
+                if os.name == 'nt':
+                    os.system(f'notepad "{self.config_file}"')
+                # Для Linux
+                elif os.name == 'posix':
+                    os.system(f'xdg-open "{self.config_file}"')
+                # Для Mac
+                else:
+                    os.system(f'open "{self.config_file}"')
+            else:
+                self._show_info("Config file not found")
+        except Exception as e:
+            self._show_error(f"Failed to open config: {e}")
+
 class ThemeManager(tk.Frame):
-    def __init__(self, parent, themes, current_theme, font_settings, config_manager, main_gui):
+    def __init__(self, parent, themes, current_theme, font_settings, config_manager):
         super().__init__(parent)
         self.themes = themes
         self.current_theme = current_theme
         self.font_settings = font_settings
         self.cfg = config_manager
-        self.main_gui = main_gui
         self.parent_window = parent
 
         self._create_widgets()
@@ -609,9 +974,17 @@ class ThemeManager(tk.Frame):
         self.cfg.set("current_theme", self.current_theme)
         self.cfg.set("font", self.font_settings)
 
+        # Emit event for GUI reload
+        self.cfg.emit("config_updated", {
+            "type": "theme",
+            "theme": self.current_theme,
+            "font": self.font_settings
+        })
+
         # Close theme settings window
         self.parent_window.destroy()
 
-        # Reload main GUI
-        if self.main_gui and hasattr(self.main_gui, '_reload_gui'):
-            self.main_gui._reload_gui()
+if __name__ == "__main__":
+    print("Starting ConfigManager as standalone application...")
+    config = ConfigManager()
+    config.run_standalone()

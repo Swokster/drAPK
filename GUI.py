@@ -7,12 +7,15 @@ class DemoGUI:
     def __init__(self, config_path="config.json"):
         self.cfg = ConfigManager(config_path)
         self.cfg.main_gui = self
-        self.theme = self.cfg.get_theme_data()  # Локальные переменные цветов
+        self.theme = self.cfg.get_theme_data()
 
         self.root = tk.Tk()
         self.root.title("DEMOTOOL GUI")
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
         self.reload_callbacks = []
+
+        # Subscribe to config events
+        self.cfg.on("config_updated", self._on_config_updated)
 
         # Применяем тему к корневому окну
         self.root.configure(background=self.theme['bg_color'])
@@ -334,6 +337,14 @@ class DemoGUI:
         version = data.get('version', '')
         self.log_message(f"📍 Active version: {version}")
 
+    def _on_config_updated(self, data):
+        """Обработчик обновления конфигурации"""
+        update_type = data.get("type", "")
+        self.log_message(f"🔄 Config updated: {update_type}")
+
+        # Перезагружаем GUI через короткую задержку
+        self.root.after(100, self._reload_gui)
+
     def _update_versions_combobox(self):
         """Обновление комбобокса версий"""
         if hasattr(self, 'vermng') and self.combo:
@@ -356,7 +367,7 @@ class DemoGUI:
 
     def _open_config(self):
         """Открытие окна конфигурации"""
-        self.cfg.open_config_window(self.root)
+        self.cfg.open_config_window()
 
     def log_message(self, text):
         """Добавление сообщения в лог"""
@@ -379,7 +390,6 @@ class DemoGUI:
             new_gui.run()
 
         self.root.after(0, perform_reload)
-
 
     def _on_close(self):
         """Обработчик закрытия окна"""
