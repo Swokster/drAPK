@@ -184,10 +184,10 @@ class DemoGUI:
     def _initialize_tools(self, config_path):
         """Инициализация инструментов"""
         try:
-            from drtool import Vermng, KeystoreManager
+            from drtool import VersionManager, KeystoreManager
 
             # Create Tools
-            self.vermng = Vermng(config_path)
+            self.vermng = VersionManager(config_path)
             self.keystore_mng = KeystoreManager(config_path)
 
             # Set logging callback для логирования
@@ -250,7 +250,6 @@ class DemoGUI:
             for col in range(cols):
                 btn_text = ""
                 btn_command = None
-                tool_instance = None
 
                 # Ищем привязку для текущей кнопки
                 binding = next((b for b in bindings if b["button"] == btn_count), None)
@@ -261,23 +260,33 @@ class DemoGUI:
 
                     if tool_name:
                         try:
-                            # Динамически импортируем инструмент
-                            tool_module = __import__('drtool')
-                            tool_class = getattr(tool_module, tool_name)
+                            # Создаем замыкание для отложенной инициализации
+                            def create_tool_runner(tool_class_name=tool_name, tool_display_name=display_name):
+                                def tool_runner():
+                                    try:
+                                        # Динамически импортируем и создаем инструмент ПРИ НАЖАТИИ
+                                        tool_module = __import__('drtool')
+                                        tool_class = getattr(tool_module, tool_class_name)
 
-                            # Создаем экземпляр инструмента
-                            tool_instance = tool_class(self.cfg.config_file)
-                            tool_instance.set_log_callback(self.log_message)
+                                        # Создаем НОВЫЙ экземпляр инструмента
+                                        tool_instance = tool_class(self.cfg.config_file)
+                                        tool_instance.set_log_callback(self.log_message)
+                                        tool_instance.progress(self._update_progress)
 
-                            # Устанавливаем callback для прогресс-бара
-                            tool_instance.progress(self._update_progress)
+                                        self.log_message(f"🔄 Starting {tool_display_name}...")
+                                        tool_instance.run()
+
+                                    except Exception as e:
+                                        self.log_message(f"❌ Error initializing {tool_display_name}: {e}")
+
+                                return tool_runner
 
                             btn_text = display_name
-                            btn_command = tool_instance.run
-                        except AttributeError:
-                            # Если инструмент не найден
+                            btn_command = create_tool_runner()
+
+                        except Exception as e:
                             btn_text = display_name
-                            self.log_message(f"⚠️ Tool {tool_name} not found")
+                            self.log_message(f"⚠️ Tool {tool_name} setup error: {e}")
 
                 # Создаем кнопку с явным указанием цветов
                 btn = self.create_button(row_frame, btn_text, btn_command)

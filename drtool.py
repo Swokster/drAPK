@@ -114,10 +114,8 @@ class APKTool(BaseTool):
     """Base class for APK operations"""
     pass
 
-# ================ #
-# APKTool КЛАССЫ   #
-# ================ #
 
+# APKTool Classes
 class UnAPK(APKTool):
     def __init__(self, config_path="config.json"):
         super().__init__(config_path)
@@ -1103,7 +1101,7 @@ class KeystoreManager(APKTool):
             return f"Keystore: {os.path.basename(self.current_keystore_path)}"
         return "No keystore selected"
 
-class Vermng(APKTool):
+class VersionManager(APKTool):
     def __init__(self, config_path="config.json"):
         super().__init__(config_path)
         self.versions_dir = self.cfg.get("versions_dir")
@@ -1152,12 +1150,13 @@ class Vermng(APKTool):
         if selected_version:
             self.last_version = selected_version
             self.cfg.set("last_version", selected_version)
-            self._update_global_version_path()  # ОБНОВЛЯЕМ глобальный путь!
+            self._update_global_version_path()
             self.log(f"🔀 Switched to version: {selected_version}")
             self.emit('version_changed', {
                 'version': selected_version,
                 'version_path': os.path.join(self.versions_dir, selected_version)
             })
+
     def open_current_folder(self):
         """Open choosen version folder"""
         try:
@@ -1186,14 +1185,6 @@ class Vermng(APKTool):
 
         except Exception as e:
             self.log(f"❌ Failed to open folder: {e}")
-
-    # def refresh_versions(self):
-    #     """Refresh version's list"""
-    #     self.log("🔄 Refreshing versions list...")
-    #     self._update_gui_combobox()
-    #
-    #     # refresh global path
-    #     self._update_global_version_path()
 
     def refresh_versions(self):
         """Refresh version's list"""
@@ -1229,7 +1220,12 @@ class Vermng(APKTool):
             if self.last_version and versions and self.last_version in versions:
                 self.gui_combobox_var.set(self.last_version)
             elif versions:
-                self.gui_combobox_var.set(versions[0])
+                # Choose first version folder and save config
+                first_version = versions[0]
+                self.gui_combobox_var.set(first_version)
+                self.last_version = first_version
+                self.cfg.set("last_version", first_version)
+                self._update_global_version_path()
             else:
                 self.gui_combobox_var.set("")
 
@@ -1312,56 +1308,6 @@ class Vermng(APKTool):
             self.log(f"❌ Failed to copy APK: {str(e)}")
             return None
 
-    # def _process_apk_addition(self, apk_path):
-    #     """Main apk adding logic"""
-    #     try:
-    #         apk_name = os.path.basename(apk_path)
-    #         self.log(f"📁 Processing: {apk_name}")
-    #
-    #         # Check versions_dir
-    #         if not self.versions_dir:
-    #             self.log("❌ Please configure versions directory first")
-    #             messagebox.showerror("Error", "Please configure versions directory in Settings → Paths")
-    #             return False
-    #
-    #         # Create versions_dir
-    #         if not os.path.exists(self.versions_dir):
-    #             self.log(f"📁 Creating versions directory: {self.versions_dir}")
-    #             os.makedirs(self.versions_dir, exist_ok=True)
-    #
-    #         # Get version from name
-    #         version = self._extract_version_from_filename(apk_name)
-    #         if not version:
-    #             self.log("❌ Cannot extract version from filename")
-    #             return False
-    #
-    #         # Create folder sturcture
-    #         version_dir = self._create_version_structure(version)
-    #         if not version_dir:
-    #             return False
-    #
-    #         # Copy APK
-    #         if not self._copy_apk_file(apk_path, version_dir):
-    #             return False
-    #
-    #         # Refresh config and global path
-    #         self.cfg.set("last_version", version)
-    #         self.last_version = version
-    #         self._update_global_version_path()
-    #
-    #         # Refresh combobox
-    #         self._update_gui_combobox()
-    #
-    #         self.log("✅ APK imported successfully!")
-    #         self.log(f"📂 Version {version} set as current")
-    #         self.log(f"📍 Working directory: {version_dir}")
-    #         if hasattr(self, 'reload_callback'):
-    #             self.reload_callback()
-    #         return True
-    #
-    #     except Exception as e:
-    #         self.log(f"❌ Error importing APK: {str(e)}")
-    #         return False
     def _process_apk_addition(self, apk_path):
         """Main apk adding logic"""
         try:
@@ -1422,10 +1368,8 @@ class Vermng(APKTool):
     def message(self):
         return f"Version Manager - Current: {self.last_version}" if self.last_version else "Version Manager"
 
-# ================ #
-# DRTool КЛАССЫ    #
-# ================ #
 
+# DRTool Classes
 class deCAR(DRTool):
     def __init__(self, config_path="config.json"):
         super().__init__(config_path)

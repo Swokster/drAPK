@@ -7,9 +7,9 @@
     "corona-archiver": "D:\\YBERTOOL\\utils\\Corona_Archiver/corona-archiver-master/corona-archiver.py",
     "unluac": "D:\\YBERTOOL\\utils\\Unluac\\unluac_2023_12_24.jar",
     "last_version": "1.694",
-    "last_keystore": "",
-    "last_keystore_password": "",
-    "last_alias": "",
+    "last_keystore": "C:/Users/Swokster/Desktop/myapp.keystore",
+    "last_keystore_password": "123456",
+    "last_alias": "release-key",
     "buttons_shape": [
         2,
         4
