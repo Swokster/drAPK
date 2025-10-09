@@ -199,6 +199,7 @@ class Pack(APKTool):
             if apk_files:
                 return os.path.splitext(apk_files[0])[0]
         return "app"
+
     def _pack_and_sign(self):
         """Основной метод: упаковка + подписание в фоновом режиме"""
         self.start_time = time.time()
@@ -1414,7 +1415,7 @@ class ToCAR(DRTool):
 
         corona_archiver_path = self.cfg.get("corona-archiver")
         input_dir = self.paths['lu'] + os.path.sep
-        output_file = os.path.join(self.paths['output'], "resource.car")
+        output_file = os.path.join(self.paths['apk_unpacked'], "assets", "resource.car")
 
         if not os.path.exists(input_dir):
             self.result_message = "Input directory not found"

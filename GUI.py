@@ -61,7 +61,8 @@ class DemoGUI:
 
     def _setup_window(self):
         """Настройка размеров и положения окна"""
-        screen_width = self.root.winfo_screenwidth()
+        #screen_width = self.root.winfo_screenwidth()
+        screen_width = 1600
         screen_height = self.root.winfo_screenheight()
         window_width = screen_width // 4
         window_height = screen_height // 2
@@ -111,13 +112,14 @@ class DemoGUI:
         self.keystore_gen_btn = self.create_button(keystore_frame, "➕", None, width=3)
         self.keystore_gen_btn.pack(side='left', padx=(0, padding))
 
-        # Кнопка перезагрузки GUI
-        self.reload_btn = self.create_button(keystore_frame, "🔄", self._reload_gui, width=3)
-        self.reload_btn.pack(side='right', padx=(5, 0))
+
 
         # Кнопка конфигурации
         self.config_btn = self.create_button(keystore_frame, "Config", self._open_config)
-        self.config_btn.pack(side='right')
+        self.config_btn.pack(side='right', padx=(5, 0))
+        # Кнопка перезагрузки GUI
+        self.reload_btn = self.create_button(keystore_frame, "🔄", self._reload_gui, width=3)
+        self.reload_btn.pack(side='right', padx=(10, 0))
 
         # Кнопки инструментов
         self.btn_frame = tk.Frame(self.root, background=self.theme['bg_color'])
