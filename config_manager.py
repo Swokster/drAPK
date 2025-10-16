@@ -1,5 +1,7 @@
 import os
 import json
+import threading
+import subprocess
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
@@ -75,11 +77,11 @@ class ConfigManager:
             self._event_listeners[event_name] = []
         self._event_listeners[event_name].append(callback)
 
-    def off(self, event_name, callback):
-        """Unregister event listener"""
-        if event_name in self._event_listeners:
-            if callback in self._event_listeners[event_name]:
-                self._event_listeners[event_name].remove(callback)
+    # def off(self, event_name, callback):
+    #     """Unregister event listener"""
+    #     if event_name in self._event_listeners:
+    #         if callback in self._event_listeners[event_name]:
+    #             self._event_listeners[event_name].remove(callback)
 
     def emit(self, event_name, data=None):
         """Emit event to all listeners"""
@@ -89,7 +91,6 @@ class ConfigManager:
                     callback(data)
                 except Exception as e:
                     print(f"Error in event listener: {e}")
-    #
 
     def _get_root(self):
         """Get or create root Tkinter window"""
@@ -159,8 +160,9 @@ class ConfigManager:
         }
 
     @staticmethod
-    def lighten_color(hex_color, factor=0.2):
+    def lighten_color(hex_color, factor = 0.2):
         """Lighten color"""
+
         try:
             hex_color = hex_color.lstrip('#')
             r = int(hex_color[0:2], 16)
@@ -200,7 +202,7 @@ class ConfigManager:
         window.title("Configuration")
 
         window_width = 150
-        window_height = 170
+        window_height = 220
 
         # Center window on screen
         screen_width = window.winfo_screenwidth()
@@ -240,6 +242,11 @@ class ConfigManager:
                               background=lighter_color, foreground=button_text_color,
                               command=lambda: [window.destroy(), self._open_config_in_editor()])
         btn_reset.pack(pady=5)
+
+        btn_advanced = tk.Button(frame, text="Advanced", width=btn_width,
+                                 background=lighter_color, foreground=button_text_color,
+                                 command=lambda: [window.destroy(), self.open_advanced_editor()])
+        btn_advanced.pack(pady=5)
 
     def _open_paths_window(self):
         """Sub-window for selecting paths."""
@@ -295,6 +302,12 @@ class ConfigManager:
                                     command=lambda: self.check_and_fix_paths(window))
         auto_detect_btn.pack(side="left", padx=5)
 
+        # Fix JDK button - ДОБАВЛЕННАЯ КНОПКА
+        fix_jdk_btn = tk.Button(button_frame, text="Fix\nJDK", width=8, height=2,
+                                background=lighter_color, foreground=button_text_color,
+                                command=self._setup_jdk_environment)
+        fix_jdk_btn.pack(side="left", padx=5)
+
         # Save button
         save_btn = tk.Button(button_frame, text="Save", background=lighter_color, foreground=button_text_color,
                              command=lambda: self._save_paths(window))
@@ -322,6 +335,26 @@ class ConfigManager:
 
         theme_manager = ThemeManager(window, themes, current_theme, font_settings, self)
         theme_manager.pack(fill="both", expand=True, padx=10, pady=10)
+
+    def _open_config_in_editor(self):
+        """Открыть config.json в Notepad (Windows) без блокировки GUI"""
+
+        def _open():
+            try:
+                if not os.path.exists(self.config_file):
+                    self._show_info("Config file not found")
+                    return
+
+                # Рабочий способ: cmd /c start "" notepad "file"
+                subprocess.Popen(
+                    ['cmd', '/c', 'start', '', 'notepad', self.config_file],
+                    shell=True,
+                    creationflags=subprocess.CREATE_NEW_CONSOLE
+                )
+            except Exception as e:
+                self._show_error(f"Failed to open config: {e}")
+
+        threading.Thread(target=_open, daemon=True).start()
 
     def _browse_path(self, tool, var):
         """Select path for tool."""
@@ -367,72 +400,24 @@ class ConfigManager:
                 theme_data['button_text_color'], theme_data['scroll_text_color'])
 
     def reset_to_defaults(self):
-        """Reset config to default values"""
+        """Reset selected config fields to default (without overwriting the entire config)."""
         if not self._show_reset_warning():
             return False
+        reset_keys = [
+            "versions_dir", "java", "apktool", "apksigner", "zipalign",
+            "corona-archiver", "unluac", "last_version", "last_keystore",
+            "last_keystore_password", "last_alias"
+        ]
 
-        default_config = {
-            "versions_dir": "",
-            "java": "",
-            "apktool": "",
-            "apksigner": "",
-            "zipalign": "",
-            "corona-archiver": "",
-            "unluac": "",
-            "last_version": "",
-            "last_keystore": "",
-            "last_keystore_password": "",
-            "last_alias": "",
+        for key in reset_keys:
+            self.data[key] = ""
 
-            "buttons_shape": [2, 4],
-            "bindings": [
-                {"button": 1, "tool": "UnAPK", "name": "Unpack\nAPK"},
-                {"button": 2, "tool": "deCAR", "name": "Decompile\nresource.car"},
-                {"button": 3, "tool": "Unluac_All", "name": "Unluac\nLU"},
-                {"button": 4, "tool": "Unluac", "name": "Unluac\nINPUT"},
-                {"button": 5, "tool": "Pack", "name": "Pack\nSign"},
-                {"button": 6, "tool": "ToCAR", "name": "Compile\nresource.car"},
-                {"button": 7, "tool": "Luac_All", "name": "Luac\nEDITING"},
-                {"button": 8, "tool": "Luac", "name": "Luac\nINPUT"}
-            ],
-
-            "themes": {
-                "light": {
-                    "name": "Light",
-                    "background": "#FFFFFF",
-                    "text_color": "#000000",
-                    "button_text": "#000000",
-                    "scroll_text": "#000000"
-                },
-                "dark": {
-                    "name": "Dark",
-                    "background": "#2B2B2B",
-                    "text_color": "#FFFFFF",
-                    "button_text": "#FFFFFF",
-                    "scroll_text": "#CCCCCC"
-                },
-                "custom": {
-                    "name": "Custom",
-                    "background": "#1E3A5F",
-                    "text_color": "#FFFFFF",
-                    "button_text": "#FFFFFF",
-                    "scroll_text": "#E0E0E0"
-                }
-            },
-            "current_theme": "dark",
-            "font": {
-                "family": "Arial",
-                "size": 10
-            }
-        }
-
-        self.data = default_config
         self.save()
 
         # Emit event after reset
-        self.emit("config_updated", {"type": "reset"})
+        self.emit("config_updated", {"type": "partial_reset"})
 
-        self._show_info("Configuration has been reset to default values")
+        self._show_info("Selected configuration fields have been reset.")
         return True
 
     def _show_reset_warning(self):
@@ -608,23 +593,203 @@ class ConfigManager:
         root = self._get_root()
         messagebox.showinfo("Config", message, parent=root)
 
-    def _open_config_in_editor(self):
-        """Открыть config.json в текстовом редакторе"""
+    # Initial setup
+    def is_initial_start_required(self):
+        """Проверяет, требуется ли выполнение начальной настройки"""
+        return self.get("initial_start", True)
+
+    def mark_initial_start_completed(self):
+        """Отмечает, что начальная настройка выполнена"""
+        self.set("initial_start", False)
+        self.log_message("✅ Initial setup completed")
+
+    def perform_initial_setup(self):
+        """Выполняет начальную настройку при первом запуске"""
+        if not self.is_initial_start_required():
+            return True
+
+        self.log_message("🚀 Performing initial setup...")
+
+        # Проверяем и настраиваем JDK
+        if not self._setup_jdk_environment():
+            return False
+
+        # Помечаем настройку как завершенную
+        self.mark_initial_start_completed()
+        return True
+
+    # Setup JDK
+    def _setup_jdk_environment(self):
+        """Настройка окружения JDK - поиск и распаковка modules"""
+        java_path = self.get("java")
+
+        # Если путь к Java не настроен, предлагаем автоматическую настройку
+        if not java_path or not os.path.exists(java_path):
+            self.log_message("⚠️ Java path not configured. Starting auto-configuration...")
+            if not self.check_and_fix_paths():
+                self.log_message("❌ Auto-configuration failed")
+                return False
+            # Перезагружаем путь после автонастройки
+            java_path = self.get("java")
+
+        if not java_path or not os.path.exists(java_path):
+            self.log_message("❌ Java path still not configured after auto-setup")
+            return False
+
+        return self._check_and_fix_jdk_environment(java_path)
+
+    def _check_and_fix_jdk_environment(self, java_path):
+        """Проверка и исправление окружения JDK"""
         try:
-            if os.path.exists(self.config_file):
-                # Для Windows
-                if os.name == 'nt':
-                    os.system(f'notepad "{self.config_file}"')
-                # Для Linux
-                elif os.name == 'posix':
-                    os.system(f'xdg-open "{self.config_file}"')
-                # Для Mac
-                else:
-                    os.system(f'open "{self.config_file}"')
+            # Находим папку lib (на уровень выше от bin)
+            bin_dir = os.path.dirname(java_path)
+            jdk_dir = os.path.dirname(bin_dir)
+            lib_dir = os.path.join(jdk_dir, "lib")
+
+            self.log_message(f"🔍 Checking JDK environment: {jdk_dir}")
+
+            if not os.path.exists(lib_dir):
+                self.log_message(f"❌ JDK lib directory not found: {lib_dir}")
+                return False
+
+            # Ищем файл modules (без расширения)
+            modules_path = os.path.join(lib_dir, "modules")
+            modules_fix_archive = os.path.join(lib_dir, "modules_fix.rar")
+
+            # Проверяем наличие основного файла modules
+            if os.path.exists(modules_path):
+                file_size = os.path.getsize(modules_path)
+                self.log_message(f"✅ JDK modules file found: {modules_path} ({file_size} bytes)")
+                return True
             else:
-                self._show_info("Config file not found")
+                self.log_message(f"⚠️ JDK modules file not found: {modules_path}")
+
+                # Ищем архив для исправления
+                if os.path.exists(modules_fix_archive):
+                    self.log_message("📦 Found modules_fix.rar, extracting...")
+                    return self._extract_modules_fix(modules_fix_archive, lib_dir)
+                else:
+                    self.log_message("❌ Neither modules file nor modules_fix.rar found")
+                    self.log_message("💡 Please ensure JDK installation is complete")
+                    return False
+
         except Exception as e:
-            self._show_error(f"Failed to open config: {e}")
+            self.log_message(f"❌ JDK environment check failed: {str(e)}")
+            return False
+
+    def _extract_modules_fix(self, archive_path, target_dir):
+        """Распаковка архива modules_fix.rar"""
+        try:
+            # Проверяем наличие WinRAR или встроенной поддержки RAR в Python
+            if self._extract_with_winrar(archive_path, target_dir):
+                self.log_message("✅ modules_fix.rar extracted successfully with WinRAR")
+                return True
+            elif self._extract_with_python(archive_path, target_dir):
+                self.log_message("✅ modules_fix.rar extracted successfully with Python")
+                return True
+            else:
+                self.log_message("❌ Failed to extract modules_fix.rar")
+                self.log_message("💡 Please install WinRAR or ensure archive is not corrupted")
+                return False
+
+        except Exception as e:
+            self.log_message(f"❌ Extraction error: {str(e)}")
+            return False
+
+    # extractions
+    def _extract_with_winrar(self, archive_path, target_dir):
+        """Распаковка с использованием WinRAR"""
+        try:
+            # Пытаемся найти WinRAR в стандартных путях
+            winrar_paths = [
+                r"C:\Program Files\WinRAR\WinRAR.exe",
+                r"C:\Program Files (x86)\WinRAR\WinRAR.exe",
+                r"C:\Program Files\WinRAR\Rar.exe",
+                r"C:\Program Files (x86)\WinRAR\Rar.exe"
+            ]
+
+            winrar_exe = None
+            for path in winrar_paths:
+                if os.path.exists(path):
+                    winrar_exe = path
+                    break
+
+            if not winrar_exe:
+                # Пробуем найти в PATH
+                import shutil
+                winrar_exe = shutil.which("WinRAR.exe") or shutil.which("Rar.exe")
+
+            if winrar_exe:
+                cmd = [winrar_exe, "x", "-y", archive_path, target_dir]
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+
+                if result.returncode == 0:
+                    return True
+                else:
+                    self.log_message(f"⚠️ WinRAR extraction failed: {result.stderr}")
+
+            return False
+
+        except Exception as e:
+            self.log_message(f"⚠️ WinRAR extraction attempt failed: {str(e)}")
+            return False
+
+    def _extract_with_python(self, archive_path, target_dir):
+        """Распаковка с использованием Python библиотек"""
+        try:
+            # Пробуем использовать patoolib если установлен
+            try:
+                import patoolib
+                patoolib.extract_archive(archive_path, outdir=target_dir)
+                return True
+            except ImportError:
+                self.log_message("ℹ️ patoolib not available, trying rarfile...")
+
+            # Пробуем использовать rarfile
+            try:
+                import rarfile
+                with rarfile.RarFile(archive_path) as rf:
+                    rf.extractall(target_dir)
+                return True
+            except ImportError:
+                self.log_message("ℹ️ rarfile not available")
+
+            # Последняя попытка - использовать 7-zip если установлен
+            return self._extract_with_7zip(archive_path, target_dir)
+
+        except Exception as e:
+            self.log_message(f"⚠️ Python extraction failed: {str(e)}")
+            return False
+
+    def _extract_with_7zip(self, archive_path, target_dir):
+        """Распаковка с использованием 7-zip"""
+        try:
+            seven_zip_paths = [
+                r"C:\Program Files\7-Zip\7z.exe",
+                r"C:\Program Files (x86)\7-Zip\7z.exe"
+            ]
+
+            seven_zip_exe = None
+            for path in seven_zip_paths:
+                if os.path.exists(path):
+                    seven_zip_exe = path
+                    break
+
+            if not seven_zip_exe:
+                import shutil
+                seven_zip_exe = shutil.which("7z.exe")
+
+            if seven_zip_exe:
+                cmd = [seven_zip_exe, "x", "-y", archive_path, f"-o{target_dir}"]
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                return result.returncode == 0
+
+            return False
+
+        except Exception as e:
+            self.log_message(f"⚠️ 7-zip extraction failed: {str(e)}")
+            return False
+
 
     # Stand-Alone run
     def run_standalone(self):
@@ -707,23 +872,12 @@ class ConfigManager:
         )
         status_label.pack(side="bottom", pady=(10, 0))
 
-    def _open_config_in_editor(self):
-        """Открыть config.json в текстовом редакторе"""
-        try:
-            if os.path.exists(self.config_file):
-                # Для Windows
-                if os.name == 'nt':
-                    os.system(f'notepad "{self.config_file}"')
-                # Для Linux
-                elif os.name == 'posix':
-                    os.system(f'xdg-open "{self.config_file}"')
-                # Для Mac
-                else:
-                    os.system(f'open "{self.config_file}"')
-            else:
-                self._show_info("Config file not found")
-        except Exception as e:
-            self._show_error(f"Failed to open config: {e}")
+    #abstarct methods
+    def log_message(self, message):
+        """Унифицированный метод логирования"""
+        # Можно использовать существующий механизм логирования
+        # или просто выводить в консоль для начальной настройки
+        print(f"[ConfigManager] {message}")
 
 class ThemeManager(tk.Frame):
     def __init__(self, parent, themes, current_theme, font_settings, config_manager):
@@ -919,7 +1073,6 @@ class ThemeManager(tk.Frame):
                     widget.configure(foreground=button_text_color, background=lighter_color)
                 elif isinstance(widget, (tk.Label, tk.Entry)):
                     widget.configure(foreground=text_color)
-
             except:
                 pass
 
@@ -949,9 +1102,9 @@ class ThemeManager(tk.Frame):
                     widget.configure(foreground=button_text_color, background=lighter_color)
                 elif isinstance(widget, (tk.Label, tk.Entry)):
                     widget.configure(foreground=text_color)
-
             except:
                 pass
+
 
         window.configure(background=bg_color)
 
@@ -983,6 +1136,300 @@ class ThemeManager(tk.Frame):
 
         # Close theme settings window
         self.parent_window.destroy()
+
+class ConfigEditor:
+    def __init__(self, config_manager):
+        self.cfg = config_manager
+        self.parent_window = None
+        self.bg_color, self.lighter_color, self.text_color, self.button_text_color, self.scroll_text_color = self.cfg.get_theme_colors()
+
+    def open_editor(self):
+        """Open the advanced configuration editor"""
+        root = self.cfg._get_root()
+        self.parent_window = tk.Toplevel(root)
+        self.parent_window.title("Advanced Configuration Editor")
+        self.parent_window.geometry("500x700")
+        self.parent_window.grab_set()
+
+        # Применяем тему к главному окну
+        self.parent_window.configure(background=self.bg_color)
+
+        # Center window
+        self.parent_window.update_idletasks()
+        screen_width = self.parent_window.winfo_screenwidth()
+        screen_height = self.parent_window.winfo_screenheight()
+        x = (screen_width - self.parent_window.winfo_width()) // 2
+        y = (screen_height - self.parent_window.winfo_height()) // 2
+        self.parent_window.geometry(f"+{x}+{y}")
+
+        # Настраиваем стиль для notebook (вкладок) - ПРАВИЛЬНЫЙ ПОДХОД
+        style = ttk.Style()
+        style.theme_use('default')  # Используем стандартную тему
+
+        # Конфигурируем цвета вкладок
+        style.configure("TNotebook", background=self.bg_color, borderwidth=0)
+        style.configure("TNotebook.Tab",
+                        background=self.lighter_color,
+                        foreground=self.text_color,
+                        focuscolor=self.bg_color,
+                        padding=[10, 5])
+        style.map("TNotebook.Tab",
+                  background=[("selected", self.bg_color),
+                              ("active", self.lighter_color)],
+                  foreground=[("selected", self.text_color),
+                              ("active", self.text_color)])
+
+        # Create notebook for tabs
+        notebook = ttk.Notebook(self.parent_window)
+        notebook.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # Button Layout Tab
+        buttons_frame = tk.Frame(notebook, bg=self.bg_color)
+        self._create_buttons_editor(buttons_frame)
+        notebook.add(buttons_frame, text="Button Layout")
+
+        # Folders Tab
+        folders_frame = tk.Frame(notebook, bg=self.bg_color)
+        self._create_folders_editor(folders_frame)
+        notebook.add(folders_frame, text="Folders")
+
+        # Bindings Tab
+        bindings_frame = tk.Frame(notebook, bg=self.bg_color)
+        self._create_bindings_editor(bindings_frame)
+        notebook.add(bindings_frame, text="Button Bindings")
+
+        # Control buttons
+        btn_frame = tk.Frame(self.parent_window, background=self.bg_color)
+        btn_frame.pack(fill="x", pady=10)
+
+        save_btn = tk.Button(btn_frame, text="Save All",
+                             command=lambda: self._save_all(self.parent_window),
+                             background=self.lighter_color, foreground=self.button_text_color)
+        save_btn.pack(side="right", padx=5)
+
+        cancel_btn = tk.Button(btn_frame, text="Cancel",
+                               command=self.parent_window.destroy,
+                               background=self.lighter_color, foreground=self.button_text_color)
+        cancel_btn.pack(side="right", padx=5)
+
+    def _create_buttons_editor(self, parent):
+        """Editor for buttons_shape [rows, columns]"""
+        frame = tk.LabelFrame(parent, text="Button Grid Layout",
+                             bg=self.bg_color, fg=self.text_color)
+        frame.pack(fill="x", padx=10, pady=5)
+
+        current = self.cfg.get("buttons_shape", [])
+
+        # Use existing values or empty
+        rows_val = str(current[0]) if len(current) > 0 else ""
+        cols_val = str(current[1]) if len(current) > 1 else ""
+
+        # Rows
+        rows_label = tk.Label(frame, text="Rows:", bg=self.bg_color, fg=self.text_color)
+        rows_label.grid(row=0, column=0, padx=5, pady=5, sticky="w")
+
+        self.rows_var = tk.StringVar(value=rows_val)
+        rows_entry = tk.Entry(frame, textvariable=self.rows_var, width=10,
+                             bg=self.lighter_color, fg=self.text_color, insertbackground=self.text_color)
+        rows_entry.grid(row=0, column=1, padx=5, pady=5)
+
+        # Columns
+        cols_label = tk.Label(frame, text="Columns:", bg=self.bg_color, fg=self.text_color)
+        cols_label.grid(row=0, column=2, padx=5, pady=5, sticky="w")
+
+        self.cols_var = tk.StringVar(value=cols_val)
+        cols_entry = tk.Entry(frame, textvariable=self.cols_var, width=10,
+                             bg=self.lighter_color, fg=self.text_color, insertbackground=self.text_color)
+        cols_entry.grid(row=0, column=3, padx=5, pady=5)
+
+        frame.columnconfigure(1, weight=1)
+        frame.columnconfigure(3, weight=1)
+
+    def _create_folders_editor(self, parent):
+        """Редактор folder_structure"""
+        frame = tk.LabelFrame(parent, text="Folders",
+                              bg=self.bg_color, fg=self.text_color)
+        frame.pack(fill="both", expand=True, padx=10, pady=5)
+
+        folders = self.cfg.get("folder_structure", {})
+        self.folder_vars = {}
+
+        folder_keys = list(folders.keys())
+
+        if not folder_keys:
+            no_folders_label = tk.Label(frame, text="No folders configured",
+                                        bg=self.bg_color, fg="gray")
+            no_folders_label.pack(pady=20)
+            return
+
+        # create scrolling frame
+        canvas = tk.Canvas(frame, bg=self.bg_color, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas, bg=self.bg_color)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        # Заголовки колонок
+        key_label = tk.Label(scrollable_frame, text="Key", font=("Arial", 9, "bold"),
+                             bg=self.bg_color, fg=self.text_color)
+        key_label.grid(row=0, column=0, padx=5, pady=5)
+
+        name_label = tk.Label(scrollable_frame, text="Name", font=("Arial", 9, "bold"),
+                              bg=self.bg_color, fg=self.text_color)
+        name_label.grid(row=0, column=1, padx=5, pady=5)
+
+        for i, key in enumerate(folder_keys, 1):
+            # Key label - фиксированное поле, используем bg_color
+            key_label = tk.Label(scrollable_frame, text=f"{key}:", bg=self.bg_color, fg=self.text_color)
+            key_label.grid(row=i, column=0, sticky="w", padx=5, pady=2)
+
+            # Name entry - редактируемое поле, используем lighter_color
+            var = tk.StringVar(value=folders[key])
+            entry = tk.Entry(scrollable_frame, textvariable=var, width=25,
+                             bg=self.lighter_color, fg=self.text_color, insertbackground=self.text_color)
+            entry.grid(row=i, column=1, sticky="ew", padx=5, pady=2)
+            self.folder_vars[key] = var
+
+        scrollable_frame.columnconfigure(1, weight=1)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+    def _create_bindings_editor(self, parent):
+        """Редактор bindings"""
+        frame = tk.LabelFrame(parent, text="Button Bindings",
+                              bg=self.bg_color, fg=self.text_color)
+        frame.pack(fill="both", expand=True, padx=10, pady=5)
+
+        bindings = self.cfg.get("bindings", [])
+        self.binding_data = bindings.copy()  # Сохраняем оригинальные данные
+        self.binding_texts = []
+
+        if not bindings:
+            no_bindings_label = tk.Label(frame, text="No button bindings configured",
+                                         bg=self.bg_color, fg="gray")
+            no_bindings_label.pack(pady=20)
+            return
+
+        # create scrolling frame
+        canvas = tk.Canvas(frame, bg=self.bg_color, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas, bg=self.bg_color)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        # Заголовки колонок
+        button_label = tk.Label(scrollable_frame, text="Button #", font=("Arial", 9, "bold"),
+                                bg=self.bg_color, fg=self.text_color)
+        button_label.grid(row=0, column=0, padx=5, pady=5)
+
+        desc_label = tk.Label(scrollable_frame, text="Description", font=("Arial", 9, "bold"),
+                              bg=self.bg_color, fg=self.text_color)
+        desc_label.grid(row=0, column=1, padx=5, pady=5)
+
+        name_label = tk.Label(scrollable_frame, text="Display Name", font=("Arial", 9, "bold"),
+                              bg=self.bg_color, fg=self.text_color)
+        name_label.grid(row=0, column=2, padx=5, pady=5)
+
+        # Create frame for each binding
+        for i, binding in enumerate(bindings, 1):
+            # Button Number
+            button_text = str(binding.get("button", ""))
+            button_label = tk.Label(scrollable_frame, text=button_text, width=8,
+                                    bg=self.bg_color, fg=self.text_color, anchor="w")
+            button_label.grid(row=i, column=0, padx=5, pady=2, sticky="w")
+
+            # Description
+            description = binding.get("description", binding.get("tool", ""))
+            desc_label = tk.Label(scrollable_frame, text=description, width=25,
+                                  bg=self.bg_color, fg=self.text_color, anchor="w")
+            desc_label.grid(row=i, column=1, padx=5, pady=2, sticky="w")
+
+            # Display Name (редактируемое поле)
+            name_content = binding.get("name", "")
+
+            name_text = tk.Text(scrollable_frame, width=20, height=2, wrap=tk.WORD,
+                                bg=self.lighter_color, fg=self.text_color, insertbackground=self.text_color)
+            name_text.insert("1.0", name_content)
+            name_text.grid(row=i, column=2, padx=5, pady=2, sticky="nsew")
+
+            self.binding_texts.append(name_text)
+
+        scrollable_frame.columnconfigure(1, weight=1)
+        scrollable_frame.columnconfigure(2, weight=1)
+        scrollable_frame.rowconfigure(tk.ALL, weight=1)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+    def _save_all(self, window):
+        """Save all changes"""
+        # Save buttons_shape
+        rows = self.rows_var.get().strip()
+        cols = self.cols_var.get().strip()
+
+        if rows and cols:
+            try:
+                self.cfg.set("buttons_shape", [int(rows), int(cols)])
+            except ValueError:
+                messagebox.showerror("Error", "Rows and Columns must be numbers")
+                return
+        else:
+            if "buttons_shape" in self.cfg.data:
+                del self.cfg.data["buttons_shape"]
+
+        # Save folder_structure
+        if hasattr(self, 'folder_vars') and self.folder_vars:
+            folders = {}
+            for key, var in self.folder_vars.items():
+                value = var.get().strip()
+                if value:
+                    folders[key] = value
+
+            if folders:
+                self.cfg.set("folder_structure", folders)
+            else:
+                if "folder_structure" in self.cfg.data:
+                    del self.cfg.data["folder_structure"]
+
+        # Save bindings (используем description из конфига)
+        if hasattr(self, 'binding_texts') and self.binding_texts and hasattr(self, 'binding_data'):
+            updated_bindings = []
+            for i, binding in enumerate(self.binding_data):
+                if i < len(self.binding_texts):
+                    name_text = self.binding_texts[i]
+
+                    # Получаем новый текст для name
+                    name_content = name_text.get("1.0", "end-1c")
+
+                    # Создаем обновленный биндинг с оригинальными полями + новым name
+                    updated_binding = binding.copy()  # Копируем все оригинальные поля
+                    updated_binding["name"] = name_content  # Обновляем только name
+
+                    updated_bindings.append(updated_binding)
+
+            if updated_bindings:
+                self.cfg.set("bindings", updated_bindings)
+            else:
+                if "bindings" in self.cfg.data:
+                    del self.cfg.data["bindings"]
+
+        self.cfg.save()
+        self.cfg.emit("config_updated", {"type": "advanced"})
+        window.destroy()
+
 
 if __name__ == "__main__":
     print("Starting ConfigManager as standalone application...")

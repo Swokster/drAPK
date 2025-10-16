@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 import subprocess
 import shutil
 import time
@@ -49,26 +50,19 @@ class BaseTool(ABC):
                     self.log(f"❌ Event handler error: {e}")
 
     def _setup_paths(self):
-        """create base folder structure"""
+        """Create base folder structure from config"""
         if BaseTool.version_path:
-            self.paths = {
-                'apk': os.path.join(BaseTool.version_path, "1_APK"),
-                'apk_unpacked': os.path.join(BaseTool.version_path, "2_APK_unpacked"),
-                'lu': os.path.join(BaseTool.version_path, "3_LU"),
-                'lua': os.path.join(BaseTool.version_path, "4_LUA"),
-                'editing': os.path.join(BaseTool.version_path, "5_EDITING"),
-                'input': os.path.join(BaseTool.version_path, "6_INPUT"),
-                'output': os.path.join(BaseTool.version_path, "7_OUTPUT"),
-                'backup': os.path.join(BaseTool.version_path, "8_BackUp"),
-                'asm': os.path.join(BaseTool.version_path, "9_ASM"),
-                'temp': os.path.join(BaseTool.version_path, "10_Temp")
-            }
+            # Получаем структуру папок ТОЛЬКО из конфига
+            folder_structure = self.cfg.get("folder_structure")
+
+            # Динамически создаем paths на основе конфига
+            self.paths = {}
+            for key, folder_name in folder_structure.items():
+                self.paths[key] = os.path.join(BaseTool.version_path, folder_name)
         else:
-            self.paths = {
-                'apk': '', 'apk_unpacked': '', 'lu': '', 'lua': '',
-                'editing': '', 'input': '', 'output': '', 'backup': '',
-                'asm': '', 'temp': ''
-            }
+            # Если нет версии - создаем пустые пути для всех ключей из конфига
+            folder_structure = self.cfg.get("folder_structure", {})
+            self.paths = {key: '' for key in folder_structure.keys()}
 
     def set_reload_callback(self, callback):
         self.reload_callback = callback
@@ -164,11 +158,12 @@ class UnAPK(APKTool):
                 text=True
             )
 
-            self.result_message = "APK unpacked successfully"
-            self.log(f"✅ APK unpacked successfully to {unpack_folder}")
+            if result.returncode == 0:
+                self.result_message = "APK unpacked successfully"
+                self.log(f"✅ APK unpacked successfully to {unpack_folder}")
+            else:
+                self.log(f"❌ APKTool error: {result.stderr}")
 
-        except subprocess.CalledProcessError as e:
-            self.log(f"❌ APKTool error: {e.stderr}")
         except Exception as e:
             self.log(f"❌ Error: {str(e)}")
 
@@ -1102,6 +1097,7 @@ class KeystoreManager(APKTool):
             return f"Keystore: {os.path.basename(self.current_keystore_path)}"
         return "No keystore selected"
 
+
 class VersionManager(APKTool):
     def __init__(self, config_path="config.json"):
         super().__init__(config_path)
@@ -1110,11 +1106,10 @@ class VersionManager(APKTool):
         self.gui_combobox = None
         self.gui_combobox_var = None
         self._update_global_version_path()
-        self.subfolders = [
-            "1_APK", "2_APK_unpacked", "3_LU", "4_LUA",
-            "5_EDITING", "6_INPUT", "7_OUTPUT", "8_BackUp",
-            "9_ASM", "10_Temp"
-        ]
+
+        # Get folder structure from config
+        folder_structure = self.cfg.get("folder_structure")
+        self.subfolders = list(folder_structure.values())
 
     def run(self):
         """Choose APK and create version folder"""
@@ -1297,7 +1292,9 @@ class VersionManager(APKTool):
         """Copy APK to the folder"""
         try:
             apk_name = os.path.basename(apk_path)
-            target_path = os.path.join(version_dir, "1_APK", apk_name)
+            apk_folder_key = 'apk'
+            apk_folder = self.paths.get(apk_folder_key)
+            target_path = os.path.join(version_dir, apk_folder, apk_name)
 
             self.log("🔄 Copying APK file...")
             shutil.copy2(apk_path, target_path)
@@ -1390,6 +1387,7 @@ class deCAR(DRTool):
             return
 
         try:
+            self.log(f"✅ CAR decompilation started to {output_dir}")
             subprocess.Popen([
                 "python",
                 corona_archiver_path,
@@ -1419,7 +1417,7 @@ class ToCAR(DRTool):
 
         if not os.path.exists(input_dir):
             self.result_message = "Input directory not found"
-            self.log("❌ 3_LU directory not found")
+            self.log(f"❌ Input directory not found: {input_dir}")
             return
 
         self.log(f"📁 Input: {input_dir}")
@@ -1441,7 +1439,6 @@ class ToCAR(DRTool):
             if os.path.exists(output_file):
                 self.result_message = "CAR packaging completed successfully"
                 self.log("✅ CAR packaging completed")
-                self.log(f"📦 File created: 7_OUTPUT/resource.car")
             else:
                 self.result_message = "Error: Output file not created"
                 self.log("❌ Output file not found")
@@ -1467,23 +1464,53 @@ class UnluacBase(DRTool):
         """abstract method should be implemented in subclass"""
         raise NotImplementedError("Subclasses must implement get_input_output_paths")
 
+    def get_unluac_flags(self):
+        """Override this method to add flags like -l for ASM mode"""
+        return []
+
     def _process_single_file(self, input_path, output_path):
-        """Process single file"""
         try:
-            result = subprocess.run([
-                self.java_path, "-jar", self.unluac_path, input_path
-            ], capture_output=True, text=True, check=True)
+            filename = os.path.basename(input_path)
 
-            # Save result
-            with open(output_path, 'w', encoding='utf-8') as f:
-                f.write(result.stdout)
+            cmd = [self.java_path, "-jar", self.unluac_path]
+            cmd.extend(self.get_unluac_flags())
+            cmd.append(input_path)
 
-            return True, os.path.basename(input_path), None
-        except subprocess.CalledProcessError as e:
-            error_msg = e.stderr.strip() if e.stderr else "Unknown error"
-            return False, os.path.basename(input_path), error_msg
+            result = subprocess.run(cmd, encoding='utf-8', capture_output=True, text=True, check=True, timeout=30)
+
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+            # Самый надежный способ - найти ВСЕ строки с присваиванием и декодировать ВСЕ последовательности в них
+            decoded_content = re.sub(
+                r'( = ")([^"]+?)(")',
+                lambda m: m.group(1) + self._decode_all_sequences_in_string(m.group(2)) + m.group(3),
+                result.stdout
+            )
+
+            with open(output_path, 'w', encoding='utf-8') as f_out:
+                f_out.write(decoded_content)
+
+            return True, filename, None
+
         except Exception as e:
             return False, os.path.basename(input_path), str(e)
+
+    def _decode_all_sequences_in_string(self, text):
+        """Декодирует все UTF8 последовательности в строке"""
+        out = bytearray()
+        temp_text = text
+
+        while temp_text:
+            match = re.match(r'\\(\d{1,3})', temp_text)
+            if match:
+                char_code = int(match.group(1))
+                out.extend(bytes([char_code]))
+                temp_text = temp_text[match.end():]
+            else:
+                out.extend(temp_text[0].encode('utf-8'))
+                temp_text = temp_text[1:]
+
+        return out.decode('utf-8')
 
     def _decode_lu_files(self):
         """Decopmilating logic"""
@@ -1566,6 +1593,27 @@ class UnluacBase(DRTool):
         except Exception as e:
             self.log(f"❌ Decompilation error: {str(e)}")
 
+    def _decode_line(self, line):
+        """Декодирует строку если содержит UTF8 последовательности"""
+        if re.search(r' = ".*\\\d{3}\\\d{3}', line):
+            return self._decode_utf8_sequence(line)
+        return line
+
+    def _decode_utf8_sequence(self, sequence):
+        """Decoding UTF-8 sequence"""
+        out = bytearray()
+        temp_seq = sequence
+        while temp_seq:
+            match = re.match(r'\\(\d{1,3})', temp_seq)
+            if match:
+                char_code = int(match.group(1))
+                out.extend(bytes([char_code]))
+                temp_seq = temp_seq[match.end():]
+            else:
+                # Если встретили не-цифровой символ - останавливаемся
+                break
+        return out.decode('utf-8')
+
     def run(self):
         """Launch decompilation in a separate thread"""
         if not self.unluac_path:
@@ -1578,6 +1626,7 @@ class UnluacBase(DRTool):
 
     def message(self):
         return self.result_message
+
 class Unluac(UnluacBase):
     """Decompile .LU from 6_INPUT to 7_OUTPUT"""
 
@@ -1588,6 +1637,7 @@ class Unluac_All(UnluacBase):
 
     def get_input_output_paths(self):
         return self.paths['lu'], self.paths['lua']
+
 
 class LuacBase(DRTool):
     """Base class for Luac"""
@@ -1603,31 +1653,53 @@ class LuacBase(DRTool):
         self.luac_path = os.path.join(lua_dir, "luac5.1.exe")
         # Check
         if not os.path.exists(self.luac_path):
-            self.luac_path = "luac" #change to luac from PATH if not found
+            self.luac_path = "luac"  # change to luac from PATH if not found
 
     def get_input_output_paths(self):
         """Method to be overridden in child classes"""
         raise NotImplementedError("Subclasses must implement get_input_output_paths")
 
     def _find_lua_files_recursive(self, directory):
-        """Recursive search for all .lua files"""
+        """Recursive search for all .lua files - ONLY FILES, NOT DIRECTORIES"""
         lua_files = []
         for root, dirs, files in os.walk(directory):
+            dirs[:] = [d for d in dirs if not d.startswith('!')]
             for file in files:
                 if file.lower().endswith(".lua"):
-                    lua_files.append(os.path.join(root, file))
+                    full_path = os.path.join(root, file)
+                    # Проверяем, что это файл
+                    if os.path.isfile(full_path):
+                        lua_files.append(full_path)
         return lua_files
 
-    def _get_relative_output_path(self, input_path, input_dir, output_dir):
-        """Determines the output file path"""
-        relative_path = os.path.relpath(input_path, input_dir)
-        output_file = relative_path.replace('.lua', '.lu')
-        return os.path.join(output_dir, output_file)
+    def _get_output_filename(self, input_path, input_dir):
+        """Generate unique output filename - FLAT STRUCTURE"""
+        # Берем только имя файла без пути
+        filename = os.path.basename(input_path)
+
+        # Заменяем расширение .lua на .lu
+        output_filename = filename.replace('.lua', '.lu')
+
+        # Если файл с таким именем уже существует, добавляем суффикс
+        output_dir = self.get_input_output_paths()[1]
+        base_name = output_filename.replace('.lu', '')
+        counter = 1
+        final_output_name = output_filename
+
+        while os.path.exists(os.path.join(output_dir, final_output_name)):
+            final_output_name = f"{base_name}_{counter}.lu"
+            counter += 1
+
+        return final_output_name
 
     def _process_single_file(self, input_path, output_path):
         """Processing single file"""
         try:
-            # Create dirs if necessary
+            # Дополнительная проверка на существование файла
+            if not os.path.isfile(input_path):
+                return False, os.path.basename(input_path), "Not a file"
+
+            # Create output directory if necessary
             output_dir = os.path.dirname(output_path)
             os.makedirs(output_dir, exist_ok=True)
 
@@ -1636,11 +1708,12 @@ class LuacBase(DRTool):
                 self.luac_path, "-o", output_path, input_path
             ], capture_output=True, text=True)
 
-            # Check
+            # Check if file was created
             file_created = os.path.exists(output_path)
 
-            if not file_created and result.stderr:
-                return False, os.path.basename(input_path), result.stderr.strip()
+            if not file_created:
+                error_msg = result.stderr.strip() if result.stderr else "Unknown error"
+                return False, os.path.basename(input_path), error_msg
 
             return True, os.path.basename(input_path), None
 
@@ -1648,7 +1721,7 @@ class LuacBase(DRTool):
             return False, os.path.basename(input_path), str(e)
 
     def _compile_lua_files(self):
-        """Common LUA files compilation logic"""
+        """Common LUA files compilation logic - FLAT OUTPUT STRUCTURE"""
         try:
             input_dir, output_dir = self.get_input_output_paths()
 
@@ -1660,17 +1733,22 @@ class LuacBase(DRTool):
 
             # Recursive search for all .lua files
             lua_files = self._find_lua_files_recursive(input_dir)
+
             if not lua_files:
                 self.log("❌ No .lua files found")
                 return
 
             total_files = len(lua_files)
-            self.log(f"📁 Files to process: {total_files}")
+            self.log(f"📁 Found {total_files} .lua files in all subfolders")
 
-            # Preparing tasks
+            # Create output directory
+            os.makedirs(output_dir, exist_ok=True)
+
+            # Preparing tasks - FLAT STRUCTURE
             tasks = []
             for lua_file_path in lua_files:
-                output_path = self._get_relative_output_path(lua_file_path, input_dir, output_dir)
+                output_filename = self._get_output_filename(lua_file_path, input_dir)
+                output_path = os.path.join(output_dir, output_filename)
                 tasks.append((lua_file_path, output_path))
 
             # File processing
@@ -1697,7 +1775,9 @@ class LuacBase(DRTool):
                             progress = int((processed_count / total_files) * 100)
                             self.progress_callback(progress)
 
-                        if not success:
+                        if success:
+                            pass
+                        else:
                             failed_count += 1
                             error_messages.append(f"❌ {filename}: {error}")
 
@@ -1707,15 +1787,16 @@ class LuacBase(DRTool):
                         error_messages.append(f"❌ {os.path.basename(input_path)}: {str(e)}")
 
             # Results
-            self.log(f"✅ Compilation completed: {processed_count - failed_count}/{total_files} successful")
-            self.log(f"📁 Output: {os.path.basename(output_dir)}/")
+            success_count = processed_count - failed_count
+            self.log(f"✅ Compilation completed: {success_count}/{total_files} successful")
+            self.log(f"📁 All files compiled to: {output_dir}")
 
             if failed_count > 0:
                 self.log(f"❌ Failed files: {failed_count}")
                 for error_msg in error_messages:
                     self.log(error_msg)
 
-            self.result_message = f"Compiled {processed_count - failed_count}/{total_files} files"
+            self.result_message = f"Compiled {success_count}/{total_files} files to flat structure"
 
         except Exception as e:
             self.log(f"❌ Compilation error: {str(e)}")
@@ -1738,3 +1819,264 @@ class Luac_All(LuacBase):
 
     def get_input_output_paths(self):
         return self.paths['editing'], self.paths['lu']
+
+
+class ASM(DRTool):
+    """Базовый класс для операций ассемблирования/дизассемблирования"""
+    def run(self):
+        self.log("Not implemented yet")
+    def message(self):
+        pass
+class AsmLu(ASM):
+    """Ассемблирование ASM → LU (ASM to Lua bytecode)"""
+class LuAsm(ASM):
+    """Дизассемблирование LU → ASM (Lua bytecode to ASM)"""
+
+
+class UTF8Decoder(BaseTool):
+    """Базовый класс для декодирования UTF8 последовательностей"""
+
+    def __init__(self, config_path="config.json"):
+        super().__init__(config_path)
+        self.result_message = ""
+
+    @abstractmethod
+    def get_input_output_paths(self):
+        """Абстрактный метод должен быть реализован в подклассе"""
+        raise NotImplementedError("Subclasses must implement get_input_output_paths")
+
+    def decode_utf8_sequences(self, line):
+        """Декодирует UTF8 escape-последовательности в нормальный текст"""
+        out = bytearray()
+        while line:
+            match = re.match(r'\\(\d{1,3})', line)
+            if match:
+                char_code = int(match.group(1))
+                out.extend(bytes([char_code]))
+                line = line[match.end():]
+            else:
+                out.extend(line[0].encode('utf-8'))
+                line = line[1:]
+
+        return out.decode('utf-8')
+
+    def _process_single_file(self, input_path, output_path):
+        """Обрабатывает один файл"""
+        try:
+            # Создаем директорию для выходного файла если нужно
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+            with open(input_path, 'r', encoding='utf-8', errors='ignore') as f_in, \
+                    open(output_path, 'w', encoding='utf-8') as f_out:
+
+                for line in f_in:
+                    # Проверяем, содержит ли строка UTF8 escape-последовательности
+                    if re.search(r' = ".*\\\d{3}\\\d{3}', line):
+                        line = self.decode_utf8_sequences(line)
+
+                    f_out.write(line)
+
+            return True, os.path.basename(input_path), None
+
+        except Exception as e:
+            return False, os.path.basename(input_path), str(e)
+
+    def _decode_files(self):
+        """Основная логика декодирования файлов"""
+        try:
+            input_dir, output_dir = self.get_input_output_paths()
+
+            self.log(f"🔤 Starting UTF8 decoding from {os.path.basename(input_dir)}...")
+
+            if not os.path.exists(input_dir):
+                self.log(f"❌ Input directory not found: {input_dir}")
+                return
+
+            # Рекурсивный поиск .lua файлов
+            lua_files = []
+            for root, dirs, files in os.walk(input_dir):
+                for file in files:
+                    if file.lower().endswith(".lua"):
+                        lua_files.append(os.path.join(root, file))
+
+            if not lua_files:
+                self.log("❌ No .lua files found")
+                return
+
+            total_files = len(lua_files)
+            self.log(f"📁 Files to process: {total_files}")
+
+            # Создаем выходную директорию
+            os.makedirs(output_dir, exist_ok=True)
+
+            # Подготавливаем задачи
+            tasks = []
+            for lua_file_path in lua_files:
+                relative_path = os.path.relpath(lua_file_path, input_dir)
+                output_path = os.path.join(output_dir, relative_path)
+                tasks.append((lua_file_path, output_path))
+
+            # Обработка файлов с прогресс-баром
+            processed_count = 0
+            failed_count = 0
+            error_messages = []
+
+            max_workers = min(len(tasks), os.cpu_count() * 2)
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_to_file = {
+                    executor.submit(self._process_single_file, input_path, output_path): input_path
+                    for input_path, output_path in tasks
+                }
+
+                for future in concurrent.futures.as_completed(future_to_file):
+                    input_path = future_to_file[future]
+                    try:
+                        success, filename, error = future.result()
+                        processed_count += 1
+
+                        # Обновляем прогресс-бар через callback
+                        if self.progress_callback:
+                            progress = int((processed_count / total_files) * 100)
+                            self.progress_callback(progress)
+
+                        if not success:
+                            failed_count += 1
+                            error_messages.append(f"❌ {filename}: {error}")
+
+                    except Exception as e:
+                        processed_count += 1
+                        failed_count += 1
+                        error_messages.append(f"❌ {os.path.basename(input_path)}: {str(e)}")
+
+            # Результаты
+            success_count = processed_count - failed_count
+            self.log(f"✅ UTF8 decoding completed: {success_count}/{total_files} successful")
+
+            if failed_count > 0:
+                self.log(f"❌ Failed files: {failed_count}")
+                for error_msg in error_messages:
+                    self.log(error_msg)
+
+            self.result_message = f"Decoded {success_count}/{total_files} files"
+
+        except Exception as e:
+            self.log(f"❌ UTF8 decoding error: {str(e)}")
+
+    def run(self):
+        """Запуск декодирования в отдельном потоке"""
+        thread = threading.Thread(target=self._decode_files)
+        thread.daemon = True
+        thread.start()
+
+    def find_file_by_pattern(self, search_pattern, search_dir=None):
+        """Поиск файла по паттерну в указанной директории"""
+        if search_dir is None:
+            search_dir = self.paths['lua']  # По умолчанию ищем в 4_LUA
+
+        if not os.path.exists(search_dir):
+            self.log(f"❌ Search directory not found: {search_dir}")
+            return None
+
+        # Разбиваем паттерн на ключевые слова
+        keywords = search_pattern.lower().split()
+
+        best_match = None
+        best_score = 0
+
+        for root, dirs, files in os.walk(search_dir):
+            for file in files:
+                if file.lower().endswith('.lua'):
+                    file_lower = file.lower()
+
+                    # Подсчитываем количество совпадений ключевых слов
+                    score = sum(1 for keyword in keywords if keyword in file_lower)
+
+                    if score > best_score:
+                        best_score = score
+                        best_match = os.path.join(root, file)
+                    elif score == best_score and best_match:
+                        # Если одинаковый счет, выбираем более короткое имя
+                        if len(file) < len(os.path.basename(best_match)):
+                            best_match = os.path.join(root, file)
+
+        return best_match
+
+    def _decode_single_file_cli(self, search_pattern):
+        """Декодирование одного файла по паттерну через CLI"""
+        output_dir = os.path.join(self.paths['editing'], "UTF-8")  # 5_EDITING/UTF-8
+
+        self.log(f"🔍 Searching for file with pattern: '{search_pattern}'")
+
+        # Ищем файл
+        file_path = self.find_file_by_pattern(search_pattern)
+
+        if not file_path:
+            self.log(f"❌ File not found for pattern: '{search_pattern}'")
+            return False
+
+        self.log(f"✅ Found file: {os.path.basename(file_path)}")
+
+        # Создаем выходной путь
+        relative_path = os.path.relpath(file_path, os.path.dirname(file_path))
+        output_path = os.path.join(output_dir, os.path.basename(file_path))
+
+        # Декодируем файл
+        success, filename, error = self._process_single_file(file_path, output_path)
+
+        if success:
+            self.log(f"✅ File decoded successfully: {output_path}")
+            return True
+        else:
+            self.log(f"❌ Failed to decode file: {error}")
+            return False
+
+    def cli(self, args):
+        """CLI интерфейс для работы из GUI"""
+        if not args or args.strip() == "":
+            # Если аргументов нет - запускаем полное декодирование
+            self.run()
+        elif args.strip() in ["?", "help"]:
+            # Показываем справку по аргументам
+            self._show_help()
+        else:
+            # Если есть аргументы - ищем и декодируем один файл
+            self._decode_single_file_cli(args.strip())
+
+    def _show_help(self):
+        """Показывает справку по использованию CLI"""
+        help_text = """
+    UTF8 Decoder - Справка по аргументам:
+
+    Команды:
+      (без аргументов)  - Декодировать все .lua файлы
+      <pattern>         - Найти и декодировать файл по паттерну
+      ? или help        - Показать эту справку
+
+    Примеры:
+      utf8              - Декодировать все файлы
+      utf8 lang         - Найти файл с 'lang' в имени и декодировать
+      utf8 st rostov    - Найти файл по нескольким ключевым словам
+      utf8 ?            - Показать справку
+    """
+        self.log(help_text.strip())
+
+    def message(self):
+        return self.result_message
+#region Subclasses to decode from custom paths
+class UTF8Decoder_LUA_to_UTF8(UTF8Decoder):
+    """Декодирование из 4_LUA в папку UTF-8"""
+
+    def get_input_output_paths(self):
+        return self.paths['lua'], os.path.join(self.paths['editing'], "UTF-8")
+class UTF8Decoder_EDITING_to_UTF8(UTF8Decoder):
+    """Декодирование из 5_EDITING в папку UTF-8"""
+
+    def get_input_output_paths(self):
+        return self.paths['editing'], os.path.join(self.paths['editing'], "UTF-8")
+class UTF8Decoder_INPUT_to_OUTPUT(UTF8Decoder):
+    """Декодирование из 6_INPUT в 7_OUTPUT"""
+
+    def get_input_output_paths(self):
+        return self.paths['input'], self.paths['output']
+#endregion
