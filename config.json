@@ -8,9 +8,9 @@
     "corona-archiver": "D:\\drAPK\\utils\\Corona_Archiver/corona-archiver-master/corona-archiver.py",
     "unluac": "D:\\drAPK\\utils\\Unluac\\unluac_2023_12_24.jar",
     "last_version": "1.694",
-    "last_keystore": "",
-    "last_keystore_password": "",
-    "last_alias": "",
+    "last_keystore": "C:/Users/Swokster/Desktop/myapp.keystore",
+    "last_keystore_password": "123456",
+    "last_alias": "release-key",
     "buttons_shape": [
         3,
         5
@@ -32,67 +32,67 @@
             "button": 1,
             "tool": "UnAPK",
             "name": "Unpack\nAPK",
-            "description": "Unpacking APK from 'apk' folder to 'lu' folder"
+            "description": "Unpacking APK to 'unpacked' folder"
         },
         {
             "button": 2,
             "tool": "deCAR",
             "name": "Decompile\nresource.car",
-            "description": "de carrr"
+            "description": "Decompile resource.car from assets to 'lu'"
         },
         {
             "button": 3,
             "tool": "Unluac_All",
             "name": "Unluac\nLU",
-            "description": "unluac all "
+            "description": "Use Unluac for all files in 'lu'"
         },
         {
             "button": 4,
             "tool": "Unluac",
             "name": "Unluac\nINPUT",
-            "description": "unluac )"
+            "description": "Use Unluac for all files in 'input'"
         },
         {
             "button": 6,
             "tool": "Pack",
             "name": "Pack\nSign",
-            "description": "paccc"
+            "description": "Packing files form 'unpacked' to APK and sign"
         },
         {
             "button": 7,
             "tool": "ToCAR",
             "name": "Compile\nresource.car",
-            "description": "To Car"
+            "description": "Compile 'lu' files to assets/resource.car"
         },
         {
             "button": 8,
             "tool": "Luac_All",
             "name": "Luac\nEDITING",
-            "description": "Luac Edd"
+            "description": "Luac all files in 'edditing'"
         },
         {
             "button": 9,
             "tool": "Luac",
             "name": "Luac\nINPUT",
-            "description": "Luac Inp"
+            "description": "Luac all files in 'input'"
         },
         {
             "button": 5,
             "tool": "LuAsm",
             "name": "Lu\nAsm",
-            "description": "LU ASM"
+            "description": "LU -> ASM"
         },
         {
             "button": 10,
             "tool": "AsmLu",
             "name": "Asm\nLu",
-            "description": "ASM LU"
+            "description": "ASM -> LU"
         },
         {
             "button": 11,
             "tool": "UTF8Decoder_INPUT_to_OUTPUT",
             "name": "UTF8\nInput",
-            "description": "UTF Input"
+            "description": "Decode UTF-8 'input' -> 'output'"
         }
     ],
     "themes": {

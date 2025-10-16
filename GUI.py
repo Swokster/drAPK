@@ -17,14 +17,14 @@ class DemoGUI:
         # Subscribe to config events
         self.cfg.on("config_updated", self._on_config_updated)
 
-        # Применяем тему к корневому окну
+        # Apply theme to main window
         self.root.configure(background=self.theme['bg_color'])
 
-        # Создаем виджеты
+        # Create widgets
         self._setup_window()
         self._create_widgets()
 
-        # Инициализируем инструменты
+        # Tool initialize
         self._initialize_tools(config_path)
     def _execute_command(self, event):
         """CLI"""
@@ -61,17 +61,16 @@ class DemoGUI:
             case "utf8":
                 utf8_tool = UTF8()
                 utf8_tool.set_log_callback(self.log_message)
- #              utf8_tool.progress(self.update_progress)
-                utf8_tool.cli(args)  # Передаем аргументы в CLI метод
+                utf8_tool.cli(args)  # Pass arguments to CLI method
 
             case _:
                 self.log_message(f"Unknown command: {command}")
                 self.log_message("Enter 'help' to get list of available commands")
 
-        self.command_entry.delete(0, tk.END)  # Очищаем поле
+        self.command_entry.delete(0, tk.END)  # Clear CL
 
     def _setup_window(self):
-        """Настройка размеров и положения окна"""
+        """Configure window size and position"""
         #screen_width = self.root.winfo_screenwidth()
         screen_width = 1990
         screen_height = self.root.winfo_screenheight()
@@ -81,72 +80,72 @@ class DemoGUI:
             f"{window_width}x{window_height}+{(screen_width // 2 - window_width // 2)}+{screen_height // 2 - window_height // 2}")
 
     def _create_widgets(self):
-        """Создание всех виджетов интерфейса"""
+        """Create widgets interface"""
         padding = 5
 
-        # Верхняя рамка
+        # Top frame
         top_frame = tk.Frame(self.root, background=self.theme['bg_color'])
         top_frame.pack(fill='x', padx=padding, pady=padding)
 
-        # Первый ряд - версии
+        # Firs row - version control
         version_frame = tk.Frame(top_frame, background=self.theme['bg_color'])
         version_frame.pack(fill='x', pady=(0, 5))
 
-        # Комбобокс версий
+        # Combobox_1 - version control
         self.combo_var = tk.StringVar()
         self.combo = ttk.Combobox(version_frame, textvariable=self.combo_var, state="readonly", width=20)
         self.combo.pack(side='left', padx=(0, padding))
 
-        # Кнопка открытия папки
+        # Open folder button
         self.open_btn = self.create_button(version_frame, "📁", None, width=3)
         self.open_btn.pack(side='left', padx=(0, padding))
 
-        # Кнопка добавления APK
+        # Add APK Button
         self.add_btn = self.create_button(version_frame, "➕", None, width=3)
         self.add_btn.pack(side='left', padx=(0, padding))
 
-        # Второй ряд - keystore
+        # Second row - keystore
         keystore_frame = tk.Frame(top_frame, background=self.theme['bg_color'])
         keystore_frame.pack(fill='x', pady=(5, 0))
 
-        # Комбобокс aliases
+        # ComboBox aliases
         self.keystore_combo_var = tk.StringVar()
         self.keystore_combo = ttk.Combobox(keystore_frame, textvariable=self.keystore_combo_var, state="readonly",
                                            width=20)
         self.keystore_combo.pack(side='left', padx=(0, padding))
 
-        # Кнопка выбора keystore
+        # Select keystore button
         self.keystore_browse_btn = self.create_button(keystore_frame, "📁", None, width=3)
         self.keystore_browse_btn.pack(side='left', padx=(0, padding))
 
-        # Кнопка генерации keystore
+        # Keystore generation button
         self.keystore_gen_btn = self.create_button(keystore_frame, "➕", None, width=3)
         self.keystore_gen_btn.pack(side='left', padx=(0, padding))
 
 
 
-        # Кнопка конфигурации
+        # Configuration button
         self.config_btn = self.create_button(keystore_frame, "Config", self._open_config)
         self.config_btn.pack(side='right', padx=(5, 0))
-        # Кнопка перезагрузки GUI
+        # Reload Gui button
         self.reload_btn = self.create_button(keystore_frame, "🔄", self._reload_gui, width=3)
         self.reload_btn.pack(side='right', padx=(10, 0))
 
-        # Кнопки инструментов
+        # Tool buttons
         self.btn_frame = tk.Frame(self.root, background=self.theme['bg_color'])
         self.btn_frame.pack(pady=padding)
 
-        # Лог
+        # Log
         log_frame = tk.Frame(self.root, background=self.theme['bg_color'])
         log_frame.pack(fill='both', expand=True, padx=padding, pady=padding)
 
-        # Метка лога
+        # Log Label
         log_label = tk.Label(log_frame, text="Log:",
                              background=self.theme['bg_color'],
                              foreground=self.theme['text_color'])
         log_label.pack(anchor="w")
 
-        # Текстовое поле лога
+        # ScrollText filed
         self.log_text = scrolledtext.ScrolledText(
             log_frame,
             height=8,
@@ -157,7 +156,7 @@ class DemoGUI:
         self.log_text.pack(fill='both', expand=True)
         #self.log_text.config(state="disabled")
 
-        # Прогресс бар
+        # Progress bar
         self.progress = ttk.Progressbar(
             self.root,
             orient='horizontal',
@@ -166,12 +165,12 @@ class DemoGUI:
         )
         self.progress.pack(fill='x', padx=padding, pady=(0, padding))
 
-        # Настраиваем стиль прогрессбара
+        # Progress bar Style
         style = ttk.Style()
         style.configure("TProgressbar",
                         background=self.theme['lighter_bg'],
                         troughcolor=self.theme['bg_color'])
-        # Поле ввода команд (после прогрессбара)
+        # Command Line
         self.command_entry = tk.Entry(
             self.root,
             background=self.theme['lighter_bg'],
@@ -181,7 +180,7 @@ class DemoGUI:
         self.command_entry.bind('<Return>', self._execute_command)
 
     def create_button(self, parent, text, command, width=12, height=2):
-        """Создает кнопку с текущей темой"""
+        """Create button with theme applied"""
         return tk.Button(
             parent,
             text=text,
@@ -195,7 +194,7 @@ class DemoGUI:
         )
 
     def _initialize_tools(self, config_path):
-        """Инициализация инструментов"""
+        """Tools initialization function"""
         try:
             from drtool import VersionManager, KeystoreManager
 
@@ -203,7 +202,7 @@ class DemoGUI:
             self.vermng = VersionManager(config_path)
             self.keystore_mng = KeystoreManager(config_path)
 
-            # Set logging callback для логирования
+            # Set logging callback for logging
             self.vermng.set_log_callback(self.log_message)
             self.keystore_mng.set_log_callback(self.log_message)
 
@@ -220,42 +219,42 @@ class DemoGUI:
             self._initialize_empty_interface()
 
     def _initialize_interface(self):
-        """Инициализация интерфейса с инструментами"""
-        # Комбобокс версий
+        """Initialize the interface with tools"""
+        # Version combobox
         self.vermng.set_gui_combobox(self.combo, self.combo_var)
         self.combo.bind('<<ComboboxSelected>>', self._on_version_selected)
 
-        # Комбобокс aliases
+        # Aliases combobox
         self.keystore_mng.set_gui_combobox(self.keystore_combo, self.keystore_combo_var)
         self.keystore_combo.bind('<<ComboboxSelected>>', self._on_alias_selected)
 
-        # Устанавливаем команды для кнопок
+        # Set commands for buttons
         self.open_btn.config(command=self.vermng.open_current_folder)
         self.add_btn.config(command=self.vermng.run)
         self.keystore_browse_btn.config(command=self.keystore_mng.run)
         self.keystore_gen_btn.config(command=self.keystore_mng.generator.run)
 
-        # Создаем кнопки инструментов
+        # Create tool buttons
         self._create_tool_buttons()
 
     def _initialize_empty_interface(self):
-        """Инициализация пустого интерфейса (без инструментов)"""
-        # Делаем кнопки неактивными
+        """Initialize empty interface (without tools)"""
+        # Disable buttons
         self.open_btn.config(state="disabled")
         self.add_btn.config(state="disabled")
         self.keystore_browse_btn.config(state="disabled")
         self.combo.config(state="disabled")
         self.keystore_combo.config(state="disabled")
 
-        # Создаем пустые кнопки инструментов
+        # Create empty tool buttons
         self._create_empty_tool_buttons()
 
     def _create_tool_buttons(self):
-        """Создание кнопок инструментов на основе конфигурации"""
+        """Create tool buttons dynamically based on configuration"""
         bindings = self.cfg.get("bindings", [])
         rows, cols = self.cfg.get("buttons_shape", [2, 4])
 
-        # Создаем кнопки
+        # Buttons create from config
         btn_count = 1
         for row in range(rows):
             row_frame = tk.Frame(self.btn_frame, background=self.theme['bg_color'])
@@ -264,7 +263,7 @@ class DemoGUI:
                 btn_text = ""
                 btn_command = None
 
-                # Ищем привязку для текущей кнопки
+                # check bindings in config
                 binding = next((b for b in bindings if b["button"] == btn_count), None)
 
                 if binding:
@@ -273,15 +272,15 @@ class DemoGUI:
 
                     if tool_name:
                         try:
-                            # Создаем замыкание для отложенной инициализации
+                            # Create a closure for deferred initialization
                             def create_tool_runner(tool_class_name=tool_name, tool_display_name=display_name):
                                 def tool_runner():
                                     try:
-                                        # Динамически импортируем и создаем инструмент ПРИ НАЖАТИИ
+                                        # Dynamically import and instantiate the tool on demand (upon click)
                                         tool_module = __import__('drtool')
                                         tool_class = getattr(tool_module, tool_class_name)
 
-                                        # Создаем НОВЫЙ экземпляр инструмента
+                                        # Initialize a NEW instance of the tool
                                         tool_instance = tool_class(self.cfg.config_file)
                                         tool_instance.set_log_callback(self.log_message)
                                         tool_instance.progress(self._update_progress)
@@ -301,10 +300,10 @@ class DemoGUI:
                             btn_text = display_name
                             self.log_message(f"⚠️ Tool {tool_name} setup error: {e}")
 
-                # Создаем кнопку с явным указанием цветов
+                # Create a button with explicit color settings
                 btn = self.create_button(row_frame, btn_text, btn_command)
 
-                # Делаем кнопку неактивной если для нее нет функционала
+                # Disable the button if no functionality is available for it
                 if not binding or not binding.get("tool", ""):
                     btn.config(state="disabled", background=self.theme['darker_bg'])
 
@@ -312,7 +311,7 @@ class DemoGUI:
                 btn_count += 1
 
     def _create_empty_tool_buttons(self):
-        """Создание пустых кнопок (когда инструментов нет)"""
+        """Create placeholder buttons (when no tools are available)"""
         bindings = self.cfg.get("bindings", [])
         rows, cols = self.cfg.get("buttons_shape", [3, 6])
 
@@ -323,52 +322,57 @@ class DemoGUI:
             for col in range(cols):
                 btn_text = ""
 
-                # Ищем название для кнопки
+                # Find a label for the button
                 binding = next((b for b in bindings if b["button"] == btn_count), None)
                 if binding:
                     btn_text = binding.get("name", binding.get("tool", ""))
 
-                # Создаем неактивную кнопку
+                # Create placeholder button
                 btn = self.create_button(row_frame, btn_text, None)
                 btn.config(state="disabled", background=self.theme['darker_bg'])
                 btn.pack(side='left', padx=2, pady=2)
                 btn_count += 1
 
     def _update_progress(self, value):
-        """Callback для обновления прогресс-бара"""
+        """Progressbar update Callback"""
         self.progress['value'] = value
         self.root.update_idletasks()
 
     def _on_version_selected(self, event):
-        """Обработчик выбора версии"""
+        """Version select event handler"""
         selected_version = self.combo_var.get()
         if selected_version and hasattr(self, 'vermng'):
             self.vermng.update_version_on_select(selected_version)
 
     def _on_versions_updated(self, data):
-        """Обработчик события обновления версий"""
+        """Version update event handler"""
         self.log_message("🔄 Versions updated - refreshing UI...")
         self._update_versions_combobox()
 
     def _on_versions_refreshed(self, data):
-        """Обработчик события обновления списка версий"""
+        """Version list update event handler"""
         self._update_versions_combobox()
 
     def _on_version_changed(self, data):
-        """Обработчик события смены версии"""
+        """Version change event handler"""
         version = data.get('version', '')
         self.log_message(f"📍 Active version: {version}")
 
     def _on_config_updated(self, data):
-        """Обработчик обновления конфигурации"""
+        """Configuration update event handler"""
         update_type = data.get("type", "")
         self.log_message(f"🔄 Config updated: {update_type}")
 
-        # Перезагружаем GUI через короткую задержку
+        # Reload GUI with a short delay
         self.root.after(100, self._reload_gui)
+    def _on_alias_selected(self, event):
+        """Alias selection event handler"""
+        selected_alias = self.keystore_combo_var.get()
+        if selected_alias and hasattr(self, 'keystore_mng'):
+            self.keystore_mng.update_alias_selection(selected_alias)
 
     def _update_versions_combobox(self):
-        """Обновление комбобокса версий"""
+        """Reload GUI with a short delay"""
         if hasattr(self, 'vermng') and self.combo:
             versions = self.vermng.get_versions_for_combo()
             self.combo['values'] = versions
@@ -381,18 +385,12 @@ class DemoGUI:
             else:
                 self.combo_var.set("")
 
-    def _on_alias_selected(self, event):
-        """Обработчик выбора alias"""
-        selected_alias = self.keystore_combo_var.get()
-        if selected_alias and hasattr(self, 'keystore_mng'):
-            self.keystore_mng.update_alias_selection(selected_alias)
-
     def _open_config(self):
-        """Открытие окна конфигурации"""
+        """Open config window"""
         self.cfg.open_config_window()
 
     def log_message(self, text):
-        """Добавление сообщения в лог"""
+        """Log message"""
         if hasattr(self, 'log_text'):
             self.log_text.config(state="normal")
             self.log_text.insert(tk.END, f"{text}\n")
@@ -414,11 +412,11 @@ class DemoGUI:
         self.root.after(0, perform_reload)
 
     def _on_close(self):
-        """Обработчик закрытия окна"""
+        """Close window event handler"""
         self.root.destroy()
 
     def run(self):
-        """Запуск главного цикла"""
+        """Start main loop"""
         self.root.mainloop()
 
 

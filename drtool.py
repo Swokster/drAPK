@@ -35,13 +35,13 @@ class BaseTool(ABC):
             BaseTool.version_path = os.path.join(versions_dir, last_version)
 
     def on(self, event_name, callback):
-        """Подписка на события"""
+        """Event subscription mechanism"""
         if event_name not in self.event_handlers:
             self.event_handlers[event_name] = []
         self.event_handlers[event_name].append(callback)
 
     def emit(self, event_name, data=None):
-        """Генерация события"""
+        """Event generation"""
         if event_name in self.event_handlers:
             for callback in self.event_handlers[event_name]:
                 try:
@@ -52,15 +52,15 @@ class BaseTool(ABC):
     def _setup_paths(self):
         """Create base folder structure from config"""
         if BaseTool.version_path:
-            # Получаем структуру папок ТОЛЬКО из конфига
+            # Getting folder structure form config
             folder_structure = self.cfg.get("folder_structure")
 
-            # Динамически создаем paths на основе конфига
+            # Dynamically generate paths based on configuration
             self.paths = {}
             for key, folder_name in folder_structure.items():
                 self.paths[key] = os.path.join(BaseTool.version_path, folder_name)
         else:
-            # Если нет версии - создаем пустые пути для всех ключей из конфига
+            # If version is missing, initialize empty paths for all config keys
             folder_structure = self.cfg.get("folder_structure", {})
             self.paths = {key: '' for key in folder_structure.keys()}
 
@@ -118,7 +118,7 @@ class UnAPK(APKTool):
         self.java_path = self.cfg.get("java")
 
     def run(self):
-        """Запуск распаковки в фоновом потоке"""
+        """Launch unpacking in a background thread"""
         if not self.apktool_path:
             raise FileNotFoundError("APKTool path not configured")
         if not self.java_path:
@@ -128,7 +128,7 @@ class UnAPK(APKTool):
         thread.start()
 
     def _unpack_apk(self):
-        """Распаковка APK в фоновом потоке"""
+        """APK unpacking in a background thread"""
         try:
             if not BaseTool.version_path:
                 self.log("❌ No version selected")
@@ -181,7 +181,7 @@ class Pack(APKTool):
         self.output_dir = self.paths['output']
 
     def run(self):
-        """Запуск упаковки и подписания в отдельном потоке"""
+        """Launch packaging and signing in a separate thread"""
         thread = threading.Thread(target=self._pack_and_sign)
         thread.daemon = True
         thread.start()
@@ -196,17 +196,17 @@ class Pack(APKTool):
         return "app"
 
     def _pack_and_sign(self):
-        """Основной метод: упаковка + подписание в фоновом режиме"""
+        """Main method: packaging and signing in background mode"""
         self.start_time = time.time()
 
         try:
             self.log("📦 Starting APK packaging and signing...")
 
-            # Обновляем прогресс
+            # Refresh progressbar
             if self.progress_callback:
                 self.progress_callback(10)
 
-            # 1. Упаковка APK
+            # 1. APK Building
             stage_start = time.time()
             apk_path = self._pack_apk()
             self.stage_times['packaging'] = time.time() - stage_start
@@ -215,11 +215,11 @@ class Pack(APKTool):
                 self._reset_progress()
                 return
 
-            # Обновляем прогресс
+            # Refresh progressbar
             if self.progress_callback:
                 self.progress_callback(50)
 
-            # 2. Получение ключа
+            # 2. Getting alias
             stage_start = time.time()
             keystore_data = self._get_keystore_data()
             self.stage_times['keystore'] = time.time() - stage_start
@@ -228,17 +228,17 @@ class Pack(APKTool):
                 self._reset_progress()
                 return
 
-            # Обновляем прогресс
+            # Refresh progressbar
             if self.progress_callback:
                 self.progress_callback(60)
 
-            # 3. Подписание APK
+            # 3. Signing APK
             stage_start = time.time()
             success = self._sign_apk(apk_path, keystore_data)
             self.stage_times['signing'] = time.time() - stage_start
 
             if success:
-                # Обновляем прогресс до 100%
+                # Refresh progressbar to 100%
                 if self.progress_callback:
                     self.progress_callback(100)
 
@@ -254,10 +254,10 @@ class Pack(APKTool):
             self._reset_progress()
 
     def _show_time_summary(self):
-        """Показывает сводку по времени выполнения"""
+        """Displays execution time summary"""
         total_time = time.time() - self.start_time
 
-        # Форматируем время для читаемости
+        # Time formatting
         def format_time(seconds):
             if seconds < 1:
                 return f"{seconds * 1000:.0f}ms"
@@ -275,7 +275,7 @@ class Pack(APKTool):
         self.log(f"   ⏱️  Total: {format_time(total_time)}")
 
     def _reset_progress(self):
-        """Сброс прогресс-бара при ошибке"""
+        """Reset progress bar on error"""
         if self.progress_callback:
             self.progress_callback(0)
 
@@ -333,14 +333,14 @@ class Pack(APKTool):
             return None
 
     def _get_keystore_data(self):
-        """Получение данных ключа из конфига - ВСЕГДА ИЗ ТЕКУЩЕГО КОНФИГА"""
+        """Retrieve key data from configuration"""
         try:
             #self.log("🔑 Getting keystore data...")
 
-            # ВАЖНО: Принудительно перезагружаем конфиг перед использованием
+            # IMPORTANT: Force reload configuration before use
             self.cfg = ConfigManager(self.cfg.config_file)
 
-            # Всегда берем актуальные данные из конфига
+            # Always fetch the latest data from the config
             keystore_path = self.cfg.get("last_keystore")
             keystore_password = self.cfg.get("last_keystore_password")
             alias = self.cfg.get("last_alias")
@@ -486,11 +486,11 @@ class Pack(APKTool):
 class GenerateKeystore(APKTool):
     def __init__(self, config_path="config.json"):
         super().__init__(config_path)
-        self.java_path = self.get_config("java")  # Теперь полный путь к java
+        self.java_path = self.get_config("java")
 
 
     def run(self):
-        """Запуск формы генерации keystore"""
+        """Run keystore generation/adding alias form"""
         if not self.java_path:
             raise FileNotFoundError("Java path not configured")
         thread = threading.Thread(target=self._show_mode_selection)
@@ -504,10 +504,10 @@ class GenerateKeystore(APKTool):
         form.grab_set()
         form.resizable(False, False)
 
-        # Применяем тему напрямую из локальных переменных
+        # Apply theme
         form.configure(background=self.theme['bg_color'])
 
-        # Создаем виджеты с явным указанием цветов
+        # Create widgets with explicit color settings
         label = tk.Label(form, text="Select operation:", font=("Arial", 12),
                          background=self.theme['bg_color'], foreground=self.theme['text_color'])
         label.pack(pady=20)
@@ -531,27 +531,27 @@ class GenerateKeystore(APKTool):
         cancel_btn.pack(pady=10)
 
     def _show_generate_form(self, parent_window):
-        """Форма генерации нового keystore"""
+        """New keystore generation form"""
         parent_window.destroy()
         self._show_keystore_form("Generate Keystore", self._generate_keystore, is_add_mode=False)
 
     def _show_add_key_form(self, parent_window):
-        """Форма добавления ключа"""
+        """Alias addition form"""
         parent_window.destroy()
         self._show_keystore_form("Add Key to Keystore", self._add_key_to_keystore, is_add_mode=True)
 
     def _show_keystore_form(self, title, submit_callback, is_add_mode=False):
-        """Универсальная форма для работы с keystore"""
+        """Universal form for keystore management"""
         form = tk.Toplevel()
         form.title(title)
         form.geometry("500x400" if is_add_mode else "400x500")
         form.grab_set()
         form.resizable(False, False)
 
-        # Применяем тему
+        # Apply Theme
         form.configure(background=self.theme['bg_color'])
 
-        # Переменные формы
+        # Apply Forms Defaults
         filename_var = tk.StringVar(value="myapp.keystore")
         keystore_path_var = tk.StringVar()
         alias_var = tk.StringVar(value="release-key")
@@ -569,7 +569,7 @@ class GenerateKeystore(APKTool):
 
         row = 0
 
-        # Поле выбора файла keystore (только для режима добавления)
+        # Keystore file selection field (add mode only)
         if is_add_mode:
             tk.Label(frame, text="Keystore file:",
                      background=self.theme['bg_color'], foreground=self.theme['text_color']).grid(row=row, column=0,
@@ -584,7 +584,7 @@ class GenerateKeystore(APKTool):
                       command=lambda: self._browse_keystore_file(keystore_path_var)).pack(side="left")
             row += 1
         else:
-            # Поле имени файла (только для режима создания)
+            # Filename input field (create mode only)
             tk.Label(frame, text="Filename*:",
                      background=self.theme['bg_color'], foreground=self.theme['text_color']).grid(row=row, column=0,
                                                                                                   sticky="w", pady=2)
@@ -593,7 +593,7 @@ class GenerateKeystore(APKTool):
                                                                                                     sticky="ew", pady=2)
             row += 1
 
-        # Чекбокс показа пароля
+        # Show Password Checkbox
         password_entry_ref = [None]
 
         def toggle_pass_visibility():
@@ -609,7 +609,7 @@ class GenerateKeystore(APKTool):
             row=row, column=0, sticky="w", columnspan=2, pady=5)
         row += 1
 
-        # Общие поля
+        # General fileds
         fields = [
             ("Alias*:", alias_var, False),
             ("Password*:", password_var, True),
@@ -621,7 +621,7 @@ class GenerateKeystore(APKTool):
             ("Country Code (C)*:", c_var, False)
         ]
 
-        # Создаем поля формы с явным указанием цветов
+        # Create form fields with explicit color specifications
         for label_text, var, is_password in fields:
             tk.Label(frame, text=label_text,
                      background=self.theme['bg_color'], foreground=self.theme['text_color']).grid(row=row, column=0,
@@ -635,7 +635,7 @@ class GenerateKeystore(APKTool):
 
             row += 1
 
-        # Кнопки
+        # Buttons
         btn_frame = tk.Frame(frame, background=self.theme['bg_color'])
         btn_frame.grid(row=row, column=0, columnspan=2, pady=20)
 
@@ -656,7 +656,7 @@ class GenerateKeystore(APKTool):
         frame.columnconfigure(1, weight=1)
 
     def _browse_keystore_file(self, keystore_path_var):
-        """Выбор файла keystore"""
+        """Keystore choose"""
         keystore_path = filedialog.askopenfilename(
             title="Select Keystore file",
             filetypes=[("Keystore files", "*.keystore *.jks"), ("All files", "*.*")]
@@ -665,7 +665,7 @@ class GenerateKeystore(APKTool):
             keystore_path_var.set(keystore_path)
 
     def _validate_fields(self, is_add_mode, **fields):
-        """Валидация полей формы"""
+        """Form's fileds validation"""
         for field_name, field_value in fields.items():
             if not field_value.strip():
                 messagebox.showerror("Error", f"Please fill all required fields (*)")
@@ -678,7 +678,7 @@ class GenerateKeystore(APKTool):
         return True
 
     def _prepare_dname(self, cn, ou, o, l, st, c):
-        """Подготовка Distinguished Name"""
+        """Prepation Distinguished Name"""
         dn_parts = []
         if cn: dn_parts.append(f"CN={cn}")
         if ou: dn_parts.append(f"OU={ou}")
@@ -689,7 +689,7 @@ class GenerateKeystore(APKTool):
         return ",".join(dn_parts)
 
     def _execute_keytool_command(self, cmd, success_message, error_context, form):
-        """Выполнение keytool команды"""
+        """Execute keytool command"""
         try:
             keytool_path = self._find_keytool()
             if not keytool_path:
@@ -725,7 +725,7 @@ class GenerateKeystore(APKTool):
 
     def _add_key_to_keystore(self, form, filename_var, keystore_path_var, alias_var,
                              password_var, cn_var, ou_var, o_var, l_var, st_var, c_var, is_add_mode):
-        """Добавление ключа в существующий keystore"""
+        """Add alias to existing keystore"""
         keystore_path = keystore_path_var.get().strip()
         alias = alias_var.get().strip()
         password = password_var.get().strip()
@@ -768,7 +768,7 @@ class GenerateKeystore(APKTool):
 
     def _generate_keystore(self, form, filename_var, keystore_path_var, alias_var,
                            password_var, cn_var, ou_var, o_var, l_var, st_var, c_var, is_add_mode):
-        """Генерация нового keystore"""
+        """New keystore generation"""
         filename = filename_var.get().strip()
         alias = alias_var.get().strip()
         password = password_var.get().strip()
@@ -788,7 +788,7 @@ class GenerateKeystore(APKTool):
             filename += '.keystore'
         keystore_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
 
-        # Проверка существования файла
+        # File exist validation
         if os.path.exists(keystore_path):
             if not messagebox.askyesno("File exists",
                                        f"File {os.path.basename(keystore_path)} already exists. Overwrite?"):
@@ -819,8 +819,8 @@ class GenerateKeystore(APKTool):
         )
 
     def _find_keytool(self):
-        """Поиск keytool"""
-        # Пытаемся найти keytool рядом с java
+        """Keytool search"""
+        # Attemp to find keytool close to java
         java_dir = os.path.dirname(self.java_path)
         for name in ["keytool.exe", "keytool"]:
             keytool_path = os.path.join(java_dir, name)
@@ -847,8 +847,8 @@ class KeystoreManager(APKTool):
         self._load_saved_keystore()
 
     def run(self):
-        """Главный метод - выбор и проверка keystore"""
-        # Выбор файла keystore
+        """Core method - choose and validate keystore"""
+        # Choose keystore file
         keystore_path = filedialog.askopenfilename(
             title="Select Keystore file",
             filetypes=[("Keystore files", "*.keystore *.jks"), ("All files", "*.*")]
@@ -860,22 +860,20 @@ class KeystoreManager(APKTool):
 
         keystore_name = os.path.basename(keystore_path)
 
-        # Ввод пароля
+        # Password entry
         password_result = self._input_password_dialog(keystore_name)
         if not password_result:
             return
 
-        # Проверка пароля
+        # Password validating
         if not self._verify_keystore_password(keystore_path, password_result["password"]):
             messagebox.showerror("Error", "Invalid keystore password")
             self.log("❌ Invalid keystore password")
             return
 
-        # Сохранение данных
+        # Data Save
         self.current_keystore_path = keystore_path
         self.current_password = password_result["password"]
-
-        # ВАЖНО: Сохраняем в конфиг
         self.cfg.set("last_keystore", keystore_path)
         if password_result["save"]:
             self.cfg.set("last_keystore_password", password_result["password"])
@@ -884,10 +882,10 @@ class KeystoreManager(APKTool):
             self.cfg.set("last_keystore_password", "")
             self.log("✅ Keystore loaded (password not saved)")
 
-        # ОБНОВЛЯЕМ СПИСОК ALIASES И ВЫБИРАЕМ ПЕРВЫЙ
+        # Refresh Alias list
         aliases = self.get_aliases_list()
         if aliases:
-            # Сохраняем первый alias в конфиг
+            # save first alias as default
             first_alias = aliases[0]
             self.cfg.set("last_alias", first_alias)
             self.current_alias = first_alias
@@ -899,16 +897,16 @@ class KeystoreManager(APKTool):
 
         self.log(f"✅ Keystore verified: {keystore_name}")
 
-        # ОБНОВЛЯЕМ GUI КОМБОБОКС
+        # Refresh GUI combobox_1
         self._update_gui_combobox()
 
-        # Принудительно обновляем все инструменты
+        # Refresh all tools
         self._refresh_all_tools()
 
     def _refresh_all_tools(self):
-        """Обновляет конфигурацию во всех инструментах"""
+        """Updates configuration across all tools"""
         try:
-            # Просто сообщаем GUI о необходимости обновления
+            # callback GUI to refresh
             if self.log_callback:
                 self.log_callback("🔄 Keystore updated - refreshing tools...")
                 self.log_callback("KEYSTORE_UPDATED")
@@ -917,8 +915,7 @@ class KeystoreManager(APKTool):
                 self.log_callback(f"⚠️ Refresh notification failed: {e}")
 
     def _load_saved_keystore(self):
-        """Загрузка сохраненных данных keystore из конфига - ВСЕГДА ИЗ КОНФИГА"""
-        # ВАЖНО: Всегда берем актуальные данные из конфига
+        """Load saved keystore data from configuration"""
         self.current_keystore_path = self.cfg.get("last_keystore")
         self.current_password = self.cfg.get("last_keystore_password")
         self.current_alias = self.cfg.get("last_alias")
@@ -926,14 +923,14 @@ class KeystoreManager(APKTool):
         self.log(f"📋 Loaded from config - Keystore: {self.current_keystore_path}, Alias: {self.current_alias}")
 
     def _input_password_dialog(self, keystore_name):
-        """Диалог ввода пароля"""
+        """Input password dialog"""
         dialog = tk.Toplevel()
         dialog.title("Keystore Password")
         dialog.geometry("300x150")
         dialog.grab_set()
         dialog.resizable(False, False)
 
-        # Применяем тему
+        # Apply theme
         dialog.configure(background=self.theme['bg_color'])
 
         result = {"password": None, "save": False}
@@ -984,7 +981,7 @@ class KeystoreManager(APKTool):
         return result if result["password"] else None
 
     def _verify_keystore_password(self, keystore_path, password):
-        """Проверка валидности пароля keystore"""
+        """Validate keystore password"""
         try:
             keytool_path = self._find_keytool()
             if not keytool_path:
@@ -1004,23 +1001,22 @@ class KeystoreManager(APKTool):
             return False
 
     def _find_keytool(self):
-        """Поиск keytool"""
-        # Пытаемся найти keytool рядом с java
+        """Search keytool"""
+        # Search keytool close to java
         java_path = self.get_config("java")
         if java_path:
-            # Если java путь указан, ищем keytool в той же директории
             java_dir = os.path.dirname(java_path)
             for name in ["keytool.exe", "keytool"]:
                 keytool_path = os.path.join(java_dir, name)
                 if os.path.exists(keytool_path):
                     return keytool_path
 
-        # Fallback: ищем в системе
+        # Fallback: global search
         import shutil
         return shutil.which("keytool")
 
     def get_aliases_list(self):
-        """Получение списка ключей из keystore"""
+        """Retrieve key list from keystore"""
         if not self.current_keystore_path or not self.current_password:
             return []
 
@@ -1051,21 +1047,18 @@ class KeystoreManager(APKTool):
         return []
 
     def _update_gui_combobox(self):
-        """Обновление комбобокса в GUI"""
+        """Refresh combobox_2 in GUI"""
         if self.gui_combobox and self.gui_combobox_var:
             aliases = self.get_aliases_list()
             self.gui_combobox['values'] = aliases
 
-            # ВАЖНО: Всегда берем актуальный alias из конфига
             current_alias = self.cfg.get("last_alias", "")
 
             if current_alias and aliases and current_alias in aliases:
                 self.gui_combobox_var.set(current_alias)
             elif aliases:
-                # Выбираем первый доступный
                 first_alias = aliases[0]
                 self.gui_combobox_var.set(first_alias)
-                # Сохраняем в конфиг
                 self.cfg.set("last_alias", first_alias)
                 self.current_alias = first_alias
             else:
@@ -1074,13 +1067,13 @@ class KeystoreManager(APKTool):
             #self.log(f"📋 ComboBox updated with {len(aliases)} aliases")
 
     def set_gui_combobox(self, combobox, combobox_var):
-        """Установка ссылок на GUI элементы"""
+        """Set references to GUI components"""
         self.gui_combobox = combobox
         self.gui_combobox_var = combobox_var
         self._update_gui_combobox()
 
     def update_alias_selection(self, selected_alias):
-        """Обновление выбранного alias"""
+        """Update selected alias"""
         if selected_alias:
             clean_alias = selected_alias.split(',')[0].strip()
             self.current_alias = clean_alias
@@ -1088,7 +1081,7 @@ class KeystoreManager(APKTool):
             self.log(f"🔑 Selected alias: {clean_alias}")
 
     def set_log_callback(self, callback):
-        """Передаем callback и генератору"""
+        """Set call back"""
         super().set_log_callback(callback)
         self.generator.set_log_callback(callback)
 
@@ -1188,7 +1181,7 @@ class VersionManager(APKTool):
         self._update_gui_combobox()
         self._update_global_version_path()
 
-        # Добавляем событие при обновлении
+        # Add event
         self.emit('versions_refreshed', {
             'versions_list': self.get_versions_for_combo(),
             'current_version': self.last_version
@@ -1350,7 +1343,6 @@ class VersionManager(APKTool):
             self.log(f"📂 Version {version} set as current")
             self.log(f"📍 Working directory: {version_dir}")
 
-            # ЗАМЕНЯЕМ прямой вызов callback на событие
             self.emit('versions_updated', {
                 'version': version,
                 'version_dir': version_dir,
@@ -1480,7 +1472,7 @@ class UnluacBase(DRTool):
 
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-            # Самый надежный способ - найти ВСЕ строки с присваиванием и декодировать ВСЕ последовательности в них
+            #Looking for ALL assignment strings and decode ALL sequences in them
             decoded_content = re.sub(
                 r'( = ")([^"]+?)(")',
                 lambda m: m.group(1) + self._decode_all_sequences_in_string(m.group(2)) + m.group(3),
@@ -1496,7 +1488,7 @@ class UnluacBase(DRTool):
             return False, os.path.basename(input_path), str(e)
 
     def _decode_all_sequences_in_string(self, text):
-        """Декодирует все UTF8 последовательности в строке"""
+        """Decodes all UTF8 sequences in string"""
         out = bytearray()
         temp_text = text
 
@@ -1594,7 +1586,7 @@ class UnluacBase(DRTool):
             self.log(f"❌ Decompilation error: {str(e)}")
 
     def _decode_line(self, line):
-        """Декодирует строку если содержит UTF8 последовательности"""
+        """Decode line if UTF8 sequence found"""
         if re.search(r' = ".*\\\d{3}\\\d{3}', line):
             return self._decode_utf8_sequence(line)
         return line
@@ -1610,7 +1602,6 @@ class UnluacBase(DRTool):
                 out.extend(bytes([char_code]))
                 temp_seq = temp_seq[match.end():]
             else:
-                # Если встретили не-цифровой символ - останавливаемся
                 break
         return out.decode('utf-8')
 
@@ -1667,20 +1658,20 @@ class LuacBase(DRTool):
             for file in files:
                 if file.lower().endswith(".lua"):
                     full_path = os.path.join(root, file)
-                    # Проверяем, что это файл
+                    # Validate isfile
                     if os.path.isfile(full_path):
                         lua_files.append(full_path)
         return lua_files
 
     def _get_output_filename(self, input_path, input_dir):
         """Generate unique output filename - FLAT STRUCTURE"""
-        # Берем только имя файла без пути
+        # Use only file name
         filename = os.path.basename(input_path)
 
-        # Заменяем расширение .lua на .lu
+        # Replace .lua with .lu
         output_filename = filename.replace('.lua', '.lu')
 
-        # Если файл с таким именем уже существует, добавляем суффикс
+        # Add suffices in case file name exists
         output_dir = self.get_input_output_paths()[1]
         base_name = output_filename.replace('.lu', '')
         counter = 1
@@ -1695,7 +1686,7 @@ class LuacBase(DRTool):
     def _process_single_file(self, input_path, output_path):
         """Processing single file"""
         try:
-            # Дополнительная проверка на существование файла
+            # additional validation file exists
             if not os.path.isfile(input_path):
                 return False, os.path.basename(input_path), "Not a file"
 
@@ -1822,19 +1813,19 @@ class Luac_All(LuacBase):
 
 
 class ASM(DRTool):
-    """Базовый класс для операций ассемблирования/дизассемблирования"""
+    """Base class for assemble/disassemble tools"""
     def run(self):
         self.log("Not implemented yet")
     def message(self):
         pass
 class AsmLu(ASM):
-    """Ассемблирование ASM → LU (ASM to Lua bytecode)"""
+    """Assembling ASM → LU (ASM to Lua bytecode)"""
 class LuAsm(ASM):
-    """Дизассемблирование LU → ASM (Lua bytecode to ASM)"""
+    """Disassebling LU → ASM (Lua bytecode to ASM)"""
 
 
 class UTF8Decoder(BaseTool):
-    """Базовый класс для декодирования UTF8 последовательностей"""
+    """Base class for decoding UTF8 sequnces"""
 
     def __init__(self, config_path="config.json"):
         super().__init__(config_path)
@@ -1842,11 +1833,11 @@ class UTF8Decoder(BaseTool):
 
     @abstractmethod
     def get_input_output_paths(self):
-        """Абстрактный метод должен быть реализован в подклассе"""
+        """Abstract method to be implemented in subclasses"""
         raise NotImplementedError("Subclasses must implement get_input_output_paths")
 
     def decode_utf8_sequences(self, line):
-        """Декодирует UTF8 escape-последовательности в нормальный текст"""
+        """Decoding UTF8 escape-sequences to readlable text"""
         out = bytearray()
         while line:
             match = re.match(r'\\(\d{1,3})', line)
@@ -1861,16 +1852,16 @@ class UTF8Decoder(BaseTool):
         return out.decode('utf-8')
 
     def _process_single_file(self, input_path, output_path):
-        """Обрабатывает один файл"""
+        """Process the file"""
         try:
-            # Создаем директорию для выходного файла если нужно
+            # create output dir if necessary
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
             with open(input_path, 'r', encoding='utf-8', errors='ignore') as f_in, \
                     open(output_path, 'w', encoding='utf-8') as f_out:
 
                 for line in f_in:
-                    # Проверяем, содержит ли строка UTF8 escape-последовательности
+                    # Determine if the input contains any UTF-8 escape-encoded characters
                     if re.search(r' = ".*\\\d{3}\\\d{3}', line):
                         line = self.decode_utf8_sequences(line)
 
@@ -1882,7 +1873,7 @@ class UTF8Decoder(BaseTool):
             return False, os.path.basename(input_path), str(e)
 
     def _decode_files(self):
-        """Основная логика декодирования файлов"""
+        """Core logic for file decoding"""
         try:
             input_dir, output_dir = self.get_input_output_paths()
 
@@ -1892,7 +1883,7 @@ class UTF8Decoder(BaseTool):
                 self.log(f"❌ Input directory not found: {input_dir}")
                 return
 
-            # Рекурсивный поиск .lua файлов
+            # Performing a recursive scan for .lua files
             lua_files = []
             for root, dirs, files in os.walk(input_dir):
                 for file in files:
@@ -1906,17 +1897,17 @@ class UTF8Decoder(BaseTool):
             total_files = len(lua_files)
             self.log(f"📁 Files to process: {total_files}")
 
-            # Создаем выходную директорию
+            # Create output dir
             os.makedirs(output_dir, exist_ok=True)
 
-            # Подготавливаем задачи
+            # Task preparation
             tasks = []
             for lua_file_path in lua_files:
                 relative_path = os.path.relpath(lua_file_path, input_dir)
                 output_path = os.path.join(output_dir, relative_path)
                 tasks.append((lua_file_path, output_path))
 
-            # Обработка файлов с прогресс-баром
+            # File processing with progress tracking
             processed_count = 0
             failed_count = 0
             error_messages = []
@@ -1935,7 +1926,7 @@ class UTF8Decoder(BaseTool):
                         success, filename, error = future.result()
                         processed_count += 1
 
-                        # Обновляем прогресс-бар через callback
+                        # Progress bar updates triggered through callback
                         if self.progress_callback:
                             progress = int((processed_count / total_files) * 100)
                             self.progress_callback(progress)
@@ -1949,7 +1940,7 @@ class UTF8Decoder(BaseTool):
                         failed_count += 1
                         error_messages.append(f"❌ {os.path.basename(input_path)}: {str(e)}")
 
-            # Результаты
+            # Result
             success_count = processed_count - failed_count
             self.log(f"✅ UTF8 decoding completed: {success_count}/{total_files} successful")
 
@@ -1964,21 +1955,21 @@ class UTF8Decoder(BaseTool):
             self.log(f"❌ UTF8 decoding error: {str(e)}")
 
     def run(self):
-        """Запуск декодирования в отдельном потоке"""
+        """Launch decoding in a separate thread"""
         thread = threading.Thread(target=self._decode_files)
         thread.daemon = True
         thread.start()
 
     def find_file_by_pattern(self, search_pattern, search_dir=None):
-        """Поиск файла по паттерну в указанной директории"""
+        """Search for a file matching the pattern in the specified directory"""
         if search_dir is None:
-            search_dir = self.paths['lua']  # По умолчанию ищем в 4_LUA
+            search_dir = self.paths['lua']  # default output folder
 
         if not os.path.exists(search_dir):
             self.log(f"❌ Search directory not found: {search_dir}")
             return None
 
-        # Разбиваем паттерн на ключевые слова
+        # Split the pattern into keywords
         keywords = search_pattern.lower().split()
 
         best_match = None
@@ -1989,26 +1980,26 @@ class UTF8Decoder(BaseTool):
                 if file.lower().endswith('.lua'):
                     file_lower = file.lower()
 
-                    # Подсчитываем количество совпадений ключевых слов
+                    # Count the number of keyword matches
                     score = sum(1 for keyword in keywords if keyword in file_lower)
 
                     if score > best_score:
                         best_score = score
                         best_match = os.path.join(root, file)
                     elif score == best_score and best_match:
-                        # Если одинаковый счет, выбираем более короткое имя
+                        # If scores are equal, select the shorter name
                         if len(file) < len(os.path.basename(best_match)):
                             best_match = os.path.join(root, file)
 
         return best_match
 
     def _decode_single_file_cli(self, search_pattern):
-        """Декодирование одного файла по паттерну через CLI"""
+        """Decode a single file by pattern via CLI"""
         output_dir = os.path.join(self.paths['editing'], "UTF-8")  # 5_EDITING/UTF-8
 
         self.log(f"🔍 Searching for file with pattern: '{search_pattern}'")
 
-        # Ищем файл
+        # File search
         file_path = self.find_file_by_pattern(search_pattern)
 
         if not file_path:
@@ -2017,11 +2008,10 @@ class UTF8Decoder(BaseTool):
 
         self.log(f"✅ Found file: {os.path.basename(file_path)}")
 
-        # Создаем выходной путь
-        relative_path = os.path.relpath(file_path, os.path.dirname(file_path))
+        # SAve output path
         output_path = os.path.join(output_dir, os.path.basename(file_path))
 
-        # Декодируем файл
+        # File Decoding
         success, filename, error = self._process_single_file(file_path, output_path)
 
         if success:
@@ -2032,51 +2022,50 @@ class UTF8Decoder(BaseTool):
             return False
 
     def cli(self, args):
-        """CLI интерфейс для работы из GUI"""
+        """CLI interface for GUI integration"""
         if not args or args.strip() == "":
-            # Если аргументов нет - запускаем полное декодирование
+            # If no arguments are provided, initiate full decoding
             self.run()
         elif args.strip() in ["?", "help"]:
-            # Показываем справку по аргументам
+            # Show ARGS help
             self._show_help()
         else:
-            # Если есть аргументы - ищем и декодируем один файл
+            # If arguments are provided, search for and decode a single file
             self._decode_single_file_cli(args.strip())
 
     def _show_help(self):
-        """Показывает справку по использованию CLI"""
+        """Displays CLI usage help"""
         help_text = """
-    UTF8 Decoder - Справка по аргументам:
+    UTF8 Decoder - CLI Argument Reference:
 
-    Команды:
-      (без аргументов)  - Декодировать все .lua файлы
-      <pattern>         - Найти и декодировать файл по паттерну
-      ? или help        - Показать эту справку
+    Commands:
+      (no arguments)   - Decode all .lua files
+      <pattern>        - Search and decode file by pattern
+      ? or help        - Show this help message
 
-    Примеры:
-      utf8              - Декодировать все файлы
-      utf8 lang         - Найти файл с 'lang' в имени и декодировать
-      utf8 st rostov    - Найти файл по нескольким ключевым словам
-      utf8 ?            - Показать справку
+    Examples:
+      utf8             - Decode all files
+      utf8 lang        - Find and decode file with 'lang' in its name
+      utf8 st rostov   - Search by multiple keywords and decode
+      utf8 ?           - Display help
     """
         self.log(help_text.strip())
+
 
     def message(self):
         return self.result_message
 #region Subclasses to decode from custom paths
 class UTF8Decoder_LUA_to_UTF8(UTF8Decoder):
-    """Декодирование из 4_LUA в папку UTF-8"""
-
+    """Decode from 4_LUA directory to UTF-8 folder"""
     def get_input_output_paths(self):
         return self.paths['lua'], os.path.join(self.paths['editing'], "UTF-8")
 class UTF8Decoder_EDITING_to_UTF8(UTF8Decoder):
-    """Декодирование из 5_EDITING в папку UTF-8"""
-
+    """Decode from 5_EDITING directory to UTF-8 folder"""
     def get_input_output_paths(self):
         return self.paths['editing'], os.path.join(self.paths['editing'], "UTF-8")
 class UTF8Decoder_INPUT_to_OUTPUT(UTF8Decoder):
-    """Декодирование из 6_INPUT в 7_OUTPUT"""
-
+    """Decode from 6_INPUT directory to 7_OUTPUT"""
     def get_input_output_paths(self):
         return self.paths['input'], self.paths['output']
+
 #endregion
