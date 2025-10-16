@@ -1090,7 +1090,6 @@ class KeystoreManager(APKTool):
             return f"Keystore: {os.path.basename(self.current_keystore_path)}"
         return "No keystore selected"
 
-
 class VersionManager(APKTool):
     def __init__(self, config_path="config.json"):
         super().__init__(config_path)
@@ -1139,12 +1138,24 @@ class VersionManager(APKTool):
         if selected_version:
             self.last_version = selected_version
             self.cfg.set("last_version", selected_version)
+            self._setup_paths()
             self._update_global_version_path()
             self.log(f"🔀 Switched to version: {selected_version}")
             self.emit('version_changed', {
                 'version': selected_version,
                 'version_path': os.path.join(self.versions_dir, selected_version)
             })
+            self._refresh_all_tools()
+
+    def _refresh_all_tools(self):
+        """Updates configuration across all tools"""
+        try:
+            if self.log_callback:
+                self.log_callback("🔄 Version changed - refreshing tools...")
+                self.log_callback("VERSION_CHANGED")
+        except Exception as e:
+            if self.log_callback:
+                self.log_callback(f"⚠️ Version refresh notification failed: {e}")
 
     def open_current_folder(self):
         """Open choosen version folder"""
@@ -1285,14 +1296,25 @@ class VersionManager(APKTool):
         """Copy APK to the folder"""
         try:
             apk_name = os.path.basename(apk_path)
+
+            # Get folder name for APK from config
             apk_folder_key = 'apk'
-            apk_folder = self.paths.get(apk_folder_key)
-            target_path = os.path.join(version_dir, apk_folder, apk_name)
+            folder_structure = self.cfg.get("folder_structure", {})
+            apk_folder_name = folder_structure.get(apk_folder_key, "1_APK")
+
+            # Create folder path
+            apk_folder_path = os.path.join(version_dir, apk_folder_name)
+
+            # Create folder if necessary
+            os.makedirs(apk_folder_path, exist_ok=True)
+
+            # Get full path to file
+            target_path = os.path.join(apk_folder_path, apk_name)
 
             self.log("🔄 Copying APK file...")
             shutil.copy2(apk_path, target_path)
 
-            self.log(f"✅ APK copied to: 1_APK/{apk_name}")
+            self.log(f"✅ APK copied to: {apk_folder_name}/{apk_name}")
             return target_path
 
         except Exception as e:
@@ -1394,7 +1416,6 @@ class deCAR(DRTool):
         self.log(f"✅ CAR decompiled to {output_dir}")
     def message(self):
         return self.result_message
-
 class ToCAR(DRTool):
     def __init__(self, config_path="config.json"):
         super().__init__(config_path)
@@ -1617,7 +1638,6 @@ class UnluacBase(DRTool):
 
     def message(self):
         return self.result_message
-
 class Unluac(UnluacBase):
     """Decompile .LU from 6_INPUT to 7_OUTPUT"""
 
@@ -1628,7 +1648,6 @@ class Unluac_All(UnluacBase):
 
     def get_input_output_paths(self):
         return self.paths['lu'], self.paths['lua']
-
 
 class LuacBase(DRTool):
     """Base class for Luac"""
@@ -1670,18 +1689,7 @@ class LuacBase(DRTool):
 
         # Replace .lua with .lu
         output_filename = filename.replace('.lua', '.lu')
-
-        # Add suffices in case file name exists
-        output_dir = self.get_input_output_paths()[1]
-        base_name = output_filename.replace('.lu', '')
-        counter = 1
-        final_output_name = output_filename
-
-        while os.path.exists(os.path.join(output_dir, final_output_name)):
-            final_output_name = f"{base_name}_{counter}.lu"
-            counter += 1
-
-        return final_output_name
+        return output_filename
 
     def _process_single_file(self, input_path, output_path):
         """Processing single file"""
@@ -1693,6 +1701,10 @@ class LuacBase(DRTool):
             # Create output directory if necessary
             output_dir = os.path.dirname(output_path)
             os.makedirs(output_dir, exist_ok=True)
+
+            # Remove existing file if it exists
+            if os.path.exists(output_path):
+                os.remove(output_path)
 
             # Start Luac
             result = subprocess.run([
@@ -1770,8 +1782,10 @@ class LuacBase(DRTool):
                             pass
                         else:
                             failed_count += 1
+                            print(filename, error, sep="\n")
+                            parts = error.split(':')
+                            error = parts[-1].strip()
                             error_messages.append(f"❌ {filename}: {error}")
-
                     except Exception as e:
                         processed_count += 1
                         failed_count += 1
@@ -1811,7 +1825,6 @@ class Luac_All(LuacBase):
     def get_input_output_paths(self):
         return self.paths['editing'], self.paths['lu']
 
-
 class ASM(DRTool):
     """Base class for assemble/disassemble tools"""
     def run(self):
@@ -1822,7 +1835,6 @@ class AsmLu(ASM):
     """Assembling ASM → LU (ASM to Lua bytecode)"""
 class LuAsm(ASM):
     """Disassebling LU → ASM (Lua bytecode to ASM)"""
-
 
 class UTF8Decoder(BaseTool):
     """Base class for decoding UTF8 sequnces"""
