@@ -1,59 +1,98 @@
 {
+    "initial_start": false,
     "versions_dir": "D:/12333",
-    "java": "D:\\YBERTOOL\\utils\\JDK/jdk-17.0.16+8/bin/java.exe",
-    "apktool": "D:\\YBERTOOL\\utils\\APKTool\\apktool_2.12.1.jar",
-    "apksigner": "D:\\YBERTOOL\\utils\\AndroidSDK/build-tools/34.0.0/apksigner.bat",
-    "zipalign": "D:\\YBERTOOL\\utils\\AndroidSDK/build-tools/34.0.0/zipalign.exe",
-    "corona-archiver": "D:\\YBERTOOL\\utils\\Corona_Archiver/corona-archiver-master/corona-archiver.py",
-    "unluac": "D:\\YBERTOOL\\utils\\Unluac\\unluac_2023_12_24.jar",
+    "java": "D:\\drAPK\\utils\\JDK/jdk-17.0.16+8/bin/java.exe",
+    "apktool": "D:\\drAPK\\utils\\APKTool\\apktool_2.12.1.jar",
+    "apksigner": "D:\\drAPK\\utils\\AndroidSDK/build-tools/34.0.0/apksigner.bat",
+    "zipalign": "D:\\drAPK\\utils\\AndroidSDK/build-tools/34.0.0/zipalign.exe",
+    "corona-archiver": "D:\\drAPK\\utils\\Corona_Archiver/corona-archiver-master/corona-archiver.py",
+    "unluac": "D:\\drAPK\\utils\\Unluac\\unluac_2023_12_24.jar",
     "last_version": "1.694",
-    "last_keystore": "C:/Users/Swokster/Desktop/myapp.keystore",
-    "last_keystore_password": "123456",
-    "last_alias": "release-key",
+    "last_keystore": "",
+    "last_keystore_password": "",
+    "last_alias": "",
     "buttons_shape": [
-        2,
-        4
+        3,
+        5
     ],
+    "folder_structure": {
+        "apk": "1_APK",
+        "apk_unpacked": "2_APK_unpacked",
+        "lu": "3_LU",
+        "lua": "4_LUA",
+        "editing": "5_EDITING",
+        "input": "6_INPUT",
+        "output": "7_OUTPUT",
+        "backup": "8_BackUp",
+        "asm": "9_ASM",
+        "temp": "10_Temp"
+    },
     "bindings": [
         {
             "button": 1,
             "tool": "UnAPK",
-            "name": "Unpack\nAPK"
+            "name": "Unpack\nAPK",
+            "description": "Unpacking APK from 'apk' folder to 'lu' folder"
         },
         {
             "button": 2,
             "tool": "deCAR",
-            "name": "Decompile\nresource.car"
+            "name": "Decompile\nresource.car",
+            "description": "de carrr"
         },
         {
             "button": 3,
             "tool": "Unluac_All",
-            "name": "Unluac\nLU"
+            "name": "Unluac\nLU",
+            "description": "unluac all "
         },
         {
             "button": 4,
             "tool": "Unluac",
-            "name": "Unluac\nINPUT"
-        },
-        {
-            "button": 5,
-            "tool": "Pack",
-            "name": "Pack\nSign"
+            "name": "Unluac\nINPUT",
+            "description": "unluac )"
         },
         {
             "button": 6,
-            "tool": "ToCAR",
-            "name": "Compile\nresource.car"
+            "tool": "Pack",
+            "name": "Pack\nSign",
+            "description": "paccc"
         },
         {
             "button": 7,
-            "tool": "Luac_All",
-            "name": "Luac\nEDITING"
+            "tool": "ToCAR",
+            "name": "Compile\nresource.car",
+            "description": "To Car"
         },
         {
             "button": 8,
+            "tool": "Luac_All",
+            "name": "Luac\nEDITING",
+            "description": "Luac Edd"
+        },
+        {
+            "button": 9,
             "tool": "Luac",
-            "name": "Luac\nINPUT"
+            "name": "Luac\nINPUT",
+            "description": "Luac Inp"
+        },
+        {
+            "button": 5,
+            "tool": "LuAsm",
+            "name": "Lu\nAsm",
+            "description": "LU ASM"
+        },
+        {
+            "button": 10,
+            "tool": "AsmLu",
+            "name": "Asm\nLu",
+            "description": "ASM LU"
+        },
+        {
+            "button": 11,
+            "tool": "UTF8Decoder_INPUT_to_OUTPUT",
+            "name": "UTF8\nInput",
+            "description": "UTF Input"
         }
     ],
     "themes": {

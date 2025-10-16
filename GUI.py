@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, scrolledtext
 from config_manager import ConfigManager
-
+from drtool import UTF8Decoder_LUA_to_UTF8 as UTF8
 
 class DemoGUI:
     def __init__(self, config_path="config.json"):
@@ -34,6 +34,10 @@ class DemoGUI:
 
         self.log_message(f"> {command}")
 
+        parts = command.split()
+        command = parts[0].lower()
+        args = " ".join(parts[1:]) if len(parts) > 1 else ""
+
         match command:
             case "clear" | "cls":
                 self.log_text.config(state="normal")
@@ -45,6 +49,7 @@ class DemoGUI:
                 self.log_message("  'clear' or 'cls' - clear log")
                 self.log_message("  'theme' - open theme config")
                 self.log_message("  'reset' - reset config")
+                self.log_message("  'utf8' or 'utf8 xx x' - decode UTF-8")
 
             case "theme":
                 self.cfg.open_themes_window(self.root)
@@ -52,6 +57,12 @@ class DemoGUI:
             case "reset":
                 self.cfg.reset_to_defaults()
                 self.log_message("✅ Configuration has been reset to default values")
+
+            case "utf8":
+                utf8_tool = UTF8()
+                utf8_tool.set_log_callback(self.log_message)
+ #              utf8_tool.progress(self.update_progress)
+                utf8_tool.cli(args)  # Передаем аргументы в CLI метод
 
             case _:
                 self.log_message(f"Unknown command: {command}")
@@ -62,7 +73,7 @@ class DemoGUI:
     def _setup_window(self):
         """Настройка размеров и положения окна"""
         #screen_width = self.root.winfo_screenwidth()
-        screen_width = 1600
+        screen_width = 1990
         screen_height = self.root.winfo_screenheight()
         window_width = screen_width // 4
         window_height = screen_height // 2

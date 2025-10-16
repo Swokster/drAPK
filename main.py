@@ -1,8 +1,14 @@
 from GUI import create_gui
 import sys
+from config_manager import ConfigManager
 
 def main():
     try:
+        config = ConfigManager()
+        if not config.perform_initial_setup():
+            print("❌ Initial setup failed. Please check configuration.")
+            sys.exit(1)
+
         gui = create_gui()
         gui.run()
     except Exception as e:
