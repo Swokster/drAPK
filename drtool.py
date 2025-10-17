@@ -1649,82 +1649,232 @@ class Unluac_All(UnluacBase):
     def get_input_output_paths(self):
         return self.paths['lu'], self.paths['lua']
 
+# class LuacBase(DRTool):
+#     """Base class for Luac"""
+#
+#     def __init__(self, config_path="config.json"):
+#         super().__init__(config_path)
+#         self.result_message = ""
+#
+#         # Get LUAC.EXE path
+#         script_dir = os.path.dirname(os.path.abspath(__file__))
+#         utils_dir = os.path.join(script_dir, "utils")
+#         lua_dir = os.path.join(utils_dir, "lua-5.1.5_Win64_bin")
+#         self.luac_path = os.path.join(lua_dir, "luac5.1.exe")
+#         # Check
+#         if not os.path.exists(self.luac_path):
+#             self.luac_path = "luac"  # change to luac from PATH if not found
+#
+#     def get_input_output_paths(self):
+#         """Method to be overridden in child classes"""
+#         raise NotImplementedError("Subclasses must implement get_input_output_paths")
+#
+#     def _find_lua_files_recursive(self, directory):
+#         """Recursive search for all .lua files - ONLY FILES, NOT DIRECTORIES"""
+#         lua_files = []
+#         for root, dirs, files in os.walk(directory):
+#             dirs[:] = [d for d in dirs if not d.startswith('!')]
+#             for file in files:
+#                 if file.lower().endswith(".lua"):
+#                     full_path = os.path.join(root, file)
+#                     # Validate isfile
+#                     if os.path.isfile(full_path):
+#                         lua_files.append(full_path)
+#         return lua_files
+#
+#     def _get_output_filename(self, input_path, input_dir):
+#         """Generate unique output filename - FLAT STRUCTURE"""
+#         # Use only file name
+#         filename = os.path.basename(input_path)
+#
+#         # Replace .lua with .lu
+#         output_filename = filename.replace('.lua', '.lu')
+#         return output_filename
+#
+#     def _process_single_file(self, input_path, output_path):
+#         """Processing single file"""
+#         try:
+#             # additional validation file exists
+#             if not os.path.isfile(input_path):
+#                 return False, os.path.basename(input_path), "Not a file"
+#
+#             # Create output directory if necessary
+#             output_dir = os.path.dirname(output_path)
+#             os.makedirs(output_dir, exist_ok=True)
+#
+#             # Remove existing file if it exists
+#             if os.path.exists(output_path):
+#                 os.remove(output_path)
+#
+#             # Start Luac
+#             result = subprocess.run([
+#                 self.luac_path, "-o", output_path, input_path
+#             ], capture_output=True, text=True)
+#
+#             # Check if file was created
+#             file_created = os.path.exists(output_path)
+#
+#             if not file_created:
+#                 error_msg = result.stderr.strip() if result.stderr else "Unknown error"
+#                 return False, os.path.basename(input_path), error_msg
+#
+#             return True, os.path.basename(input_path), None
+#
+#         except Exception as e:
+#             return False, os.path.basename(input_path), str(e)
+#
+#     def _compile_lua_files(self):
+#         """Common LUA files compilation logic - FLAT OUTPUT STRUCTURE"""
+#         try:
+#             input_dir, output_dir = self.get_input_output_paths()
+#
+#             self.log(f"🔧 Starting LUA compilation from {os.path.basename(input_dir)}...")
+#
+#             if not os.path.exists(input_dir):
+#                 self.log(f"❌ Input directory not found: {input_dir}")
+#                 return
+#
+#             # Recursive search for all .lua files
+#             lua_files = self._find_lua_files_recursive(input_dir)
+#
+#             if not lua_files:
+#                 self.log("❌ No .lua files found")
+#                 return
+#
+#             total_files = len(lua_files)
+#             self.log(f"📁 Found {total_files} .lua files in all subfolders")
+#
+#             # Create output directory
+#             os.makedirs(output_dir, exist_ok=True)
+#
+#             # Preparing tasks - FLAT STRUCTURE
+#             tasks = []
+#             for lua_file_path in lua_files:
+#                 output_filename = self._get_output_filename(lua_file_path, input_dir)
+#                 output_path = os.path.join(output_dir, output_filename)
+#                 tasks.append((lua_file_path, output_path))
+#
+#             # File processing
+#             processed_count = 0
+#             failed_count = 0
+#             error_messages = []
+#
+#             max_workers = min(len(tasks), os.cpu_count())
+#
+#             with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+#                 future_to_file = {
+#                     executor.submit(self._process_single_file, input_path, output_path): input_path
+#                     for input_path, output_path in tasks
+#                 }
+#
+#                 for future in concurrent.futures.as_completed(future_to_file):
+#                     input_path = future_to_file[future]
+#                     try:
+#                         success, filename, error = future.result()
+#                         processed_count += 1
+#
+#                         # Refresh progress bar
+#                         if hasattr(self, 'progress_callback') and self.progress_callback:
+#                             progress = int((processed_count / total_files) * 100)
+#                             self.progress_callback(progress)
+#
+#                         if success:
+#                             pass
+#                         else:
+#                             failed_count += 1
+#                             print(filename, error, sep="\n")
+#                             parts = error.split(':')
+#                             error = parts[-1].strip()
+#                             error_messages.append(f"❌ {filename}: {error}")
+#                     except Exception as e:
+#                         processed_count += 1
+#                         failed_count += 1
+#                         error_messages.append(f"❌ {os.path.basename(input_path)}: {str(e)}")
+#
+#             # Results
+#             success_count = processed_count - failed_count
+#             self.log(f"✅ Compilation completed: {success_count}/{total_files} successful")
+#             self.log(f"📁 All files compiled to: {output_dir}")
+#
+#             if failed_count > 0:
+#                 self.log(f"❌ Failed files: {failed_count}")
+#                 for error_msg in error_messages:
+#                     self.log(error_msg)
+#
+#             self.result_message = f"Compiled {success_count}/{total_files} files to flat structure"
+#
+#         except Exception as e:
+#             self.log(f"❌ Compilation error: {str(e)}")
+#
+#     def run(self):
+#         """Run compilation in separate threads"""
+#         thread = threading.Thread(target=self._compile_lua_files)
+#         thread.daemon = True
+#         thread.start()
+#
+#     def message(self):
+#         return self.result_message
 class LuacBase(DRTool):
     """Base class for Luac"""
 
     def __init__(self, config_path="config.json"):
         super().__init__(config_path)
         self.result_message = ""
-
-        # Get LUAC.EXE path
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        utils_dir = os.path.join(script_dir, "utils")
-        lua_dir = os.path.join(utils_dir, "lua-5.1.5_Win64_bin")
-        self.luac_path = os.path.join(lua_dir, "luac5.1.exe")
-        # Check
-        if not os.path.exists(self.luac_path):
-            self.luac_path = "luac"  # change to luac from PATH if not found
+        self.luac_path = self.cfg.get("luac")  # Теперь путь из конфига
 
     def get_input_output_paths(self):
         """Method to be overridden in child classes"""
         raise NotImplementedError("Subclasses must implement get_input_output_paths")
 
     def _find_lua_files_recursive(self, directory):
-        """Recursive search for all .lua files - ONLY FILES, NOT DIRECTORIES"""
+        """Recursive search for all .lua files - IGNORE folders/files starting with !"""
         lua_files = []
         for root, dirs, files in os.walk(directory):
+            # Filter out directories starting with !
             dirs[:] = [d for d in dirs if not d.startswith('!')]
+
             for file in files:
-                if file.lower().endswith(".lua"):
+                # Skip files starting with ! and only process .lua files
+                if not file.startswith('!') and file.lower().endswith(".lua"):
                     full_path = os.path.join(root, file)
-                    # Validate isfile
                     if os.path.isfile(full_path):
                         lua_files.append(full_path)
         return lua_files
 
-    def _get_output_filename(self, input_path, input_dir):
-        """Generate unique output filename - FLAT STRUCTURE"""
-        # Use only file name
-        filename = os.path.basename(input_path)
-
-        # Replace .lua with .lu
-        output_filename = filename.replace('.lua', '.lu')
-        return output_filename
-
-    def _process_single_file(self, input_path, output_path):
-        """Processing single file"""
+    def _process_single_file(self, input_path, output_dir):
+        """Process single file - like original script"""
         try:
-            # additional validation file exists
-            if not os.path.isfile(input_path):
-                return False, os.path.basename(input_path), "Not a file"
+            filename = os.path.basename(input_path)
+            file_name_without_extension = os.path.splitext(filename)[0]
 
-            # Create output directory if necessary
-            output_dir = os.path.dirname(output_path)
-            os.makedirs(output_dir, exist_ok=True)
+            # Create output filename
+            output_filename = f"{file_name_without_extension}.lu"
+            output_path = os.path.join(output_dir, output_filename)
 
             # Remove existing file if it exists
             if os.path.exists(output_path):
                 os.remove(output_path)
 
-            # Start Luac
+            # Run luac - similar to original script but with explicit output
             result = subprocess.run([
                 self.luac_path, "-o", output_path, input_path
-            ], capture_output=True, text=True)
+            ], capture_output=True, text=True, check=True)
 
             # Check if file was created
-            file_created = os.path.exists(output_path)
-
-            if not file_created:
+            if os.path.exists(output_path):
+                return True, filename, None
+            else:
                 error_msg = result.stderr.strip() if result.stderr else "Unknown error"
-                return False, os.path.basename(input_path), error_msg
+                return False, filename, error_msg
 
-            return True, os.path.basename(input_path), None
-
+        except subprocess.CalledProcessError as e:
+            error_msg = e.stderr.strip() if e.stderr else str(e)
+            return False, os.path.basename(input_path), error_msg
         except Exception as e:
             return False, os.path.basename(input_path), str(e)
 
     def _compile_lua_files(self):
-        """Common LUA files compilation logic - FLAT OUTPUT STRUCTURE"""
+        """Sequential compilation without threading"""
         try:
             input_dir, output_dir = self.get_input_output_paths()
 
@@ -1742,72 +1892,47 @@ class LuacBase(DRTool):
                 return
 
             total_files = len(lua_files)
-            self.log(f"📁 Found {total_files} .lua files in all subfolders")
+            self.log(f"📁 Found {total_files} .lua files")
 
             # Create output directory
             os.makedirs(output_dir, exist_ok=True)
 
-            # Preparing tasks - FLAT STRUCTURE
-            tasks = []
-            for lua_file_path in lua_files:
-                output_filename = self._get_output_filename(lua_file_path, input_dir)
-                output_path = os.path.join(output_dir, output_filename)
-                tasks.append((lua_file_path, output_path))
-
-            # File processing
+            # Process files SEQUENTIALLY (no threading)
             processed_count = 0
             failed_count = 0
             error_messages = []
 
-            max_workers = min(len(tasks), os.cpu_count())
+            for lua_file_path in lua_files:
+                success, filename, error = self._process_single_file(lua_file_path, output_dir)
+                processed_count += 1
 
-            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-                future_to_file = {
-                    executor.submit(self._process_single_file, input_path, output_path): input_path
-                    for input_path, output_path in tasks
-                }
+                # Progress bar updates
+                if self.progress_callback:
+                    progress = int((processed_count / total_files) * 100)
+                    self.progress_callback(progress)
 
-                for future in concurrent.futures.as_completed(future_to_file):
-                    input_path = future_to_file[future]
-                    try:
-                        success, filename, error = future.result()
-                        processed_count += 1
-
-                        # Refresh progress bar
-                        if hasattr(self, 'progress_callback') and self.progress_callback:
-                            progress = int((processed_count / total_files) * 100)
-                            self.progress_callback(progress)
-
-                        if success:
-                            pass
-                        else:
-                            failed_count += 1
-                            print(filename, error, sep="\n")
-                            parts = error.split(':')
-                            error = parts[-1].strip()
-                            error_messages.append(f"❌ {filename}: {error}")
-                    except Exception as e:
-                        processed_count += 1
-                        failed_count += 1
-                        error_messages.append(f"❌ {os.path.basename(input_path)}: {str(e)}")
+                if success:
+                    self.log(f"✅ Compiled: {filename}")
+                else:
+                    failed_count += 1
+                    error_msg = f"❌ {filename}: {error}"
+                    error_messages.append(error_msg)
+                    self.log(error_msg)
 
             # Results
             success_count = processed_count - failed_count
             self.log(f"✅ Compilation completed: {success_count}/{total_files} successful")
-            self.log(f"📁 All files compiled to: {output_dir}")
 
             if failed_count > 0:
                 self.log(f"❌ Failed files: {failed_count}")
-                for error_msg in error_messages:
-                    self.log(error_msg)
 
-            self.result_message = f"Compiled {success_count}/{total_files} files to flat structure"
+            self.result_message = f"Compiled {success_count}/{total_files} files"
 
         except Exception as e:
             self.log(f"❌ Compilation error: {str(e)}")
 
     def run(self):
-        """Run compilation in separate threads"""
+        """Run compilation in separate thread (non-blocking for GUI)"""
         thread = threading.Thread(target=self._compile_lua_files)
         thread.daemon = True
         thread.start()
@@ -1824,6 +1949,7 @@ class Luac_All(LuacBase):
 
     def get_input_output_paths(self):
         return self.paths['editing'], self.paths['lu']
+
 
 class ASM(DRTool):
     """Base class for assemble/disassemble tools"""

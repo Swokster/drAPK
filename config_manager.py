@@ -55,6 +55,13 @@ class ConfigManager:
             "description": "Corona Archiver Python script",
             "file_types": [("Python files", "*.py"), ("All files", "*.*")],
             "required": True
+        },
+        "luac": {
+            "name": "luac",
+            "location": "Luac/luac.exe",
+            "description": "Luac compiler",
+            "file_types": [("exe files", "*.exe"), ("All files", "*.*")],
+            "required": True
         }
     }
 
@@ -408,13 +415,16 @@ class ConfigManager:
         if not self._show_reset_warning():
             return False
         reset_keys = [
-            "versions_dir", "java", "apktool", "apksigner", "zipalign",
+            "initial_start", "versions_dir", "java", "apktool", "apksigner", "zipalign",
             "corona-archiver", "unluac", "last_version", "last_keystore",
-            "last_keystore_password", "last_alias"
+            "last_keystore_password", "last_alias", "luac"
         ]
 
         for key in reset_keys:
-            self.data[key] = ""
+            if key == "initial_start":
+                self.data[key] = True
+            else:
+                self.data[key] = ""
 
         self.save()
 
@@ -1151,7 +1161,7 @@ class ConfigEditor:
         root = self.cfg._get_root()
         self.parent_window = tk.Toplevel(root)
         self.parent_window.title("Advanced Configuration Editor")
-        self.parent_window.geometry("500x700")
+        self.parent_window.geometry("550x700")
         self.parent_window.grab_set()
 
         # Applying theme to main window
@@ -1213,6 +1223,47 @@ class ConfigEditor:
                                background=self.lighter_color, foreground=self.button_text_color)
         cancel_btn.pack(side="right", padx=5)
 
+    def _enable_hotkeys(self, text_widget):
+        """Enable Ctrl+V paste functionality for Text widgets (physical key binding)"""
+
+        def paste(event=None):
+            try:
+                text_widget.insert(tk.INSERT, text_widget.clipboard_get())
+                return "break"  # Prevent default behavior
+            except tk.TclError:
+                pass
+
+        def copy(event=None):
+            """Копирование в буфер обмена"""
+            try:
+                if text_widget.tag_ranges(tk.SEL):
+                    # Copy text if selected
+                    selected_text = text_widget.get(tk.SEL_FIRST, tk.SEL_LAST)
+                    text_widget.clipboard_clear()
+                    text_widget.clipboard_append(selected_text)
+                return "break"
+            except tk.TclError:
+                pass
+
+        def undo(event=None):
+            """Отмена последнего действия"""
+            try:
+                text_widget.edit_undo()
+                return "break"
+            except tk.TclError:
+                # Ignore in case undo not supported
+                pass
+
+        text_widget.configure(undo=True)
+
+        # Bind by keycode - works regardless of keyboard layout
+        # Paste(Ctrl+V)
+        text_widget.bind("<Control-KeyPress>", lambda e: paste() if e.keycode == 86 else None)
+        # Copy (Ctrl+C)
+        text_widget.bind("<Control-KeyPress>", lambda e: copy() if e.keycode == 67 else None)
+        # Undo (Ctrl+Z)
+        text_widget.bind("<Control-KeyPress>", lambda e: undo() if e.keycode == 90 else None)
+
     def _create_buttons_editor(self, parent):
         """Editor for buttons_shape [rows, columns]"""
         frame = tk.LabelFrame(parent, text="Button Grid Layout",
@@ -1247,7 +1298,7 @@ class ConfigEditor:
         frame.columnconfigure(3, weight=1)
 
     def _create_folders_editor(self, parent):
-        """folder_structure Edittor"""
+        """folder_structure Editor"""
         frame = tk.LabelFrame(parent, text="Folders",
                               bg=self.bg_color, fg=self.text_color)
         frame.pack(fill="both", expand=True, padx=10, pady=5)
@@ -1290,12 +1341,19 @@ class ConfigEditor:
             key_label = tk.Label(scrollable_frame, text=f"{key}:", bg=self.bg_color, fg=self.text_color)
             key_label.grid(row=i, column=0, sticky="w", padx=5, pady=2)
 
-            # Name entry - editable frame
-            var = tk.StringVar(value=folders[key])
-            entry = tk.Entry(scrollable_frame, textvariable=var, width=25,
-                             bg=self.lighter_color, fg=self.text_color, insertbackground=self.text_color)
-            entry.grid(row=i, column=1, sticky="ew", padx=5, pady=2)
-            self.folder_vars[key] = var
+            # Name entry - editable frame (заменяем Entry на Text для поддержки Ctrl+V)
+            value = folders[key]
+            name_text = tk.Text(scrollable_frame, width=25, height=1, wrap=tk.NONE,
+                                bg=self.lighter_color, fg=self.text_color,
+                                insertbackground=self.text_color)
+            name_text.insert("1.0", value)
+            name_text.grid(row=i, column=1, sticky="ew", padx=5, pady=2)
+
+            # Включаем поддержку Ctrl+V
+            self._enable_hotkeys(name_text)
+
+            # Сохраняем ссылку на виджет
+            self.folder_vars[key] = name_text
 
         scrollable_frame.columnconfigure(1, weight=1)
 
@@ -1311,7 +1369,8 @@ class ConfigEditor:
         bindings = self.cfg.get("bindings", [])
         self.binding_data = bindings.copy()  # Save original data
         self.binding_vars = []  # Edited bindings list
-        self.binding_texts = []  # Edited text list
+        self.binding_texts = []  # Edited text list for Display Name
+        self.desc_texts = []  # Edited text list for Description
 
         if not bindings:
             no_bindings_label = tk.Label(frame, text="No button bindings configured",
@@ -1350,26 +1409,30 @@ class ConfigEditor:
             # Button Number (Editable frame)
             button_num = str(binding.get("button", ""))
             button_var = tk.StringVar(value=button_num)
-            button_entry = tk.Entry(scrollable_frame, textvariable=button_var, width=8,
+            button_entry = tk.Entry(scrollable_frame, textvariable=button_var, width=3,
                                     bg=self.lighter_color, fg=self.text_color,
                                     insertbackground=self.text_color)
             button_entry.grid(row=i, column=0, padx=5, pady=2, sticky="w")
             self.binding_vars.append(button_var)
 
-            # Description
+            # Description (Text widget with 2 lines and word wrap)
             description = binding.get("description", binding.get("tool", ""))
-            desc_label = tk.Label(scrollable_frame, text=description, width=25,
-                                  bg=self.bg_color, fg=self.text_color, anchor="w")
-            desc_label.grid(row=i, column=1, padx=5, pady=2, sticky="w")
+            desc_text = tk.Text(scrollable_frame, width=30, height=2, wrap=tk.WORD,
+                                bg=self.lighter_color, fg=self.text_color,
+                                insertbackground=self.text_color)
+            desc_text.insert("1.0", description)
+            desc_text.grid(row=i, column=1, padx=5, pady=2, sticky="nsew")
+            self._enable_hotkeys(desc_text)  # Enable Ctrl+V
+            self.desc_texts.append(desc_text)
 
-            # Display Name (Editable frame)
+            # Display Name (Text widget with 2 lines and word wrap)
             name_content = binding.get("name", "")
-
-            name_text = tk.Text(scrollable_frame, width=20, height=2, wrap=tk.WORD,
+            name_text = tk.Text(scrollable_frame, width=15, height=2, wrap=tk.WORD,
                                 bg=self.lighter_color, fg=self.text_color,
                                 insertbackground=self.text_color)
             name_text.insert("1.0", name_content)
             name_text.grid(row=i, column=2, padx=5, pady=2, sticky="nsew")
+            self._enable_hotkeys(name_text)  # Enable Ctrl+V
             self.binding_texts.append(name_text)
 
         scrollable_frame.columnconfigure(1, weight=1)
