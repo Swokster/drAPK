@@ -1,6 +1,7 @@
 from GUI import create_gui
 import sys
 from config_manager import ConfigManager
+from updater import update_project
 
 def main():
     try:
@@ -16,4 +17,5 @@ def main():
         sys.exit(1)
 
 if __name__ == "__main__":
+    update_project()
     main()

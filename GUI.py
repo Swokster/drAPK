@@ -285,7 +285,7 @@ class DemoGUI:
                                         tool_instance.set_log_callback(self.log_message)
                                         tool_instance.progress(self._update_progress)
 
-                                        self.log_message(f"🔄 Starting {tool_display_name}...")
+                                        #self.log_message(f"🔄 Starting {tool_display_name}...")
                                         tool_instance.run()
 
                                     except Exception as e:

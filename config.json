@@ -1,17 +1,18 @@
 {
-    "initial_start": true,
-    "versions_dir": "",
-    "java": "",
-    "apktool": "",
-    "apksigner": "",
-    "zipalign": "",
-    "corona-archiver": "",
-    "unluac": "",
-    "luac": "",
-    "last_version": "",
-    "last_keystore": "",
-    "last_keystore_password": "",
-    "last_alias": "",
+    "initial_start": false,
+    "version": "0.0.0",
+    "versions_dir": "C:/Users/Swokster/Desktop/Vers",
+    "java": "D:\\drAPK\\utils\\JDK/jdk-17.0.16+8/bin/java.exe",
+    "apktool": "D:\\drAPK\\utils\\APKTool\\apktool_2.12.1.jar",
+    "apksigner": "D:\\drAPK\\utils\\AndroidSDK/build-tools/34.0.0/apksigner.bat",
+    "zipalign": "D:\\drAPK\\utils\\AndroidSDK/build-tools/34.0.0/zipalign.exe",
+    "corona-archiver": "D:\\drAPK\\utils\\Corona_Archiver/corona-archiver-master/corona-archiver.py",
+    "unluac": "D:\\drAPK\\utils\\Unluac\\unluac_2023_12_24.jar",
+    "luac": "D:\\drAPK\\utils\\Luac/luac.exe",
+    "last_version": "1.694",
+    "last_keystore": "D:/drAPK/myapp.keystore",
+    "last_keystore_password": "123456",
+    "last_alias": "release-key",
     "buttons_shape": [
         3,
         5
@@ -119,7 +120,7 @@
             "scroll_text": "#E0E0E0"
         }
     },
-    "current_theme": "dark",
+    "current_theme": "light",
     "font": {
         "family": "Arial",
         "size": 10
