@@ -95,3 +95,4 @@ def update_project():
         print(f"✅ Update completed to version {latest_version}.")
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)
+#Test
