@@ -418,7 +418,7 @@ class DemoGUI:
     def run(self):
         """Start main loop"""
         self.root.mainloop()
-
+#
 
 def create_gui(config_path="config.json"):
     return DemoGUI(config_path)

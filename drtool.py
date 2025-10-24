@@ -1814,19 +1814,6 @@ class Luac_All(LuacBase):
         return self.paths['editing'], self.paths['lu']
 #endregion
 
-class ASM(DRTool):
-    """Base class for assemble/disassemble tools"""
-    def run(self):
-        self.log("Not implemented yet")
-    def message(self):
-        pass
-#region ASM subclasses
-class AsmLu(ASM):
-    """Assembling ASM → LU (ASM to Lua bytecode)"""
-class LuAsm(ASM):
-    """Disassebling LU → ASM (Lua bytecode to ASM)"""
-#endregion
-
 class UTF8Decoder(BaseTool):
     """Base class for decoding UTF8 sequnces"""
 
@@ -2222,8 +2209,6 @@ class CLScript(DRTool):
 
     def message(self):
         return self.result_message
-
-
 class ASMLu(CLScript):
     """Assemble ASM → LU (ASM to Lua bytecode)"""
 
