@@ -506,19 +506,6 @@ class ConfigManager:
 
         return True
 
-    def set_hardcoded_defaults(self, location=None):
-        """Set hardcoded paths without checking file existence"""
-        if location is None:
-            location = self.utils_dir
-
-        for tool, config in self.TOOLS_CONFIG.items():
-            # Skip tools without location field and versions_dir
-            if tool != "versions_dir" and "location" in config:
-                expected_path = os.path.join(location, config["location"])
-                self.set(tool, expected_path)
-
-        return True
-
     def check_and_fix_paths(self, parent_window=None):
         """Check config paths and offer automatic fixing options"""
         missing_tools = []
@@ -547,33 +534,29 @@ class ConfigManager:
 
             problem_text = "\n".join(problems)
 
-            # Ask user about automatic fixing options
-            choice = messagebox.askyesnocancel(
+            # Ask user about automatic fixing
+            choice = messagebox.askyesno(
                 "Path Problems",
                 f"Found problems with tool paths:\n\n{problem_text}\n\n"
-                "Choose automatic setup option:\n\n"
+                "Do you want to try automatic setup?\n\n"
                 "• YES - Auto-search (intelligent tool search)\n"
-                "• NO - Default paths (hardcoded paths)\n"
-                "• Cancel - Manual setup",
+                "• NO - Cancel and configure manually",
                 icon="warning"
             )
 
-            if choice is True:  # YES - Auto-search
+            if choice:  # YES - Auto-search
                 found = self.set_default_utils()
                 self._show_auto_detect_result(found, "Auto-search")
 
-            elif choice is False:  # NO - Hardcoded paths
-                self.set_hardcoded_defaults()
-                found = {tool: self.get(tool, "") for tool in self.TOOLS_CONFIG.keys()
-                         if tool != "versions_dir" and "location" in self.TOOLS_CONFIG[tool]}
-                self._show_auto_detect_result(found, "Default Paths")
+                # Reload paths window
+                if parent_window and hasattr(parent_window, 'destroy'):
+                    parent_window.destroy()
+                    self._open_paths_window()
 
-            # Reload paths window if not Cancel
-            if choice is not None and parent_window and hasattr(parent_window, 'destroy'):
-                parent_window.destroy()
-                self._open_paths_window()
-
-            return choice is not None
+                return True
+            else:  # NO - Cancel
+                print("Automatic setup cancelled by user")
+                return False
 
         else:
             self._show_info("All paths are configured correctly!")
@@ -710,7 +693,6 @@ class ConfigManager:
         except Exception as e:
             self.log_message(f"❌ Extraction error: {str(e)}")
             return False
-
 
     def _extract_with_winrar(self, archive_path, target_dir):
         """Extraction using WinRAR"""

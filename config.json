@@ -80,14 +80,14 @@
         },
         {
             "button": 5,
-            "tool": "LuAsm",
-            "name": "Lu\nAsm",
+            "tool": "DisASMLu",
+            "name": "Input(Lu)\nAsm",
             "description": "LU -> ASM"
         },
         {
             "button": 10,
-            "tool": "AsmLu",
-            "name": "Asm\nLu",
+            "tool": "ASMLu",
+            "name": "Asm\nOUTPUT(Lu)",
             "description": "ASM -> LU"
         },
         {

@@ -1,6 +1,9 @@
 {
   "version": "0.0.3",
   "updated_files": [
-    "main.py"
+    "main.py",
+    "config_manager.py",
+    "drtool.py",
+    "config.json"
   ]
 }

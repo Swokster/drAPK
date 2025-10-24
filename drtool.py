@@ -34,6 +34,11 @@ class BaseTool(ABC):
         else:
             BaseTool.version_path = os.path.join(versions_dir, last_version)
 
+    @property
+    def subprocess_flags(self):
+        """Flags to hide console on Windows subprocess calls"""
+        return subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+
     def on(self, event_name, callback):
         """Event subscription mechanism"""
         if event_name not in self.event_handlers:
@@ -155,7 +160,8 @@ class UnAPK(APKTool):
             result = subprocess.run(
                 [self.java_path, "-jar", self.apktool_path, "d", apk_file, "-o", unpack_folder, "-f"],
                 capture_output=True,
-                text=True
+                text=True,
+                creationflags=self.subprocess_flags
             )
 
             if result.returncode == 0:
@@ -316,7 +322,7 @@ class Pack(APKTool):
             ]
 
             self.log(f"🔄 Building APK: {unsigned_apk_name}")
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True, creationflags=self.subprocess_flags)
 
             if os.path.exists(apk_path):
                 self.log(f"✅ APK packaged (unsigned): {unsigned_apk_name}")
@@ -417,7 +423,7 @@ class Pack(APKTool):
                 self.progress_callback(65)
 
             align_cmd = [zipalign_path, "-v", "-p", "4", apk_path, aligned_apk_path]
-            subprocess.run(align_cmd, capture_output=True, text=True, check=True)
+            subprocess.run(align_cmd, capture_output=True, text=True, check=True, creationflags=self.subprocess_flags)
             #self.log("✅ APK aligned")
 
             # 2. APKSigner signing (80% progress) - ONLY ONCE
@@ -441,7 +447,7 @@ class Pack(APKTool):
             env['PATH'] = f"{os.path.dirname(java_path)};{env['PATH']}"
 
             # Execute signing ONLY ONCE
-            result = subprocess.run(sign_cmd, capture_output=True, text=True, check=True, timeout=120, env=env)
+            result = subprocess.run(sign_cmd, capture_output=True, text=True, check=True, timeout=120, env=env, creationflags=self.subprocess_flags)
 
             if result.returncode == 0:
                 self.log("✅ APK signed successfully")
@@ -994,7 +1000,7 @@ class KeystoreManager(APKTool):
                 "-storepass", password
             ]
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, creationflags=self.subprocess_flags)
             return result.returncode == 0
 
         except Exception:
@@ -1029,7 +1035,7 @@ class KeystoreManager(APKTool):
                 "-storepass", self.current_password
             ]
 
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, creationflags=self.subprocess_flags)
 
             if result.returncode == 0:
                 aliases = []
@@ -1407,8 +1413,8 @@ class deCAR(DRTool):
                 corona_archiver_path,
                 "-u",
                 input_file,
-                output_dir
-            ])
+                output_dir,
+            ], creationflags=self.subprocess_flags)
 
         except Exception as e:
             self.result_message = f"Error: {str(e)}"
@@ -1451,7 +1457,7 @@ class ToCAR(DRTool):
                 "-p",
                 input_dir,
                 output_file
-            ])
+            ],creationflags=self.subprocess_flags)
 
             if os.path.exists(output_file):
                 self.result_message = "CAR packaging completed successfully"
@@ -1493,7 +1499,7 @@ class UnluacBase(DRTool):
             cmd.extend(self.get_unluac_flags())
             cmd.append(input_path)
 
-            result = subprocess.run(cmd, encoding='utf-8', capture_output=True, text=True, check=True, timeout=30)
+            result = subprocess.run(cmd, encoding='utf-8', capture_output=True, text=True, check=True, timeout=30, creationflags=self.subprocess_flags)
 
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
@@ -1703,7 +1709,7 @@ class LuacBase(DRTool):
             # Run luac to temporary file
             result = subprocess.run([
                 self.luac_path, "-o", temp_output_path, input_path
-            ], capture_output=True, text=True, check=True)
+            ], capture_output=True, text=True, check=True, creationflags=self.subprocess_flags)
 
             # Check if temporary file was created successfully
             if os.path.exists(temp_output_path):
@@ -2064,3 +2070,283 @@ class UTF8Decoder_INPUT_to_OUTPUT(UTF8Decoder):
     def get_input_output_paths(self):
         return self.paths['input'], self.paths['output']
 #endregion
+
+class CLScript(DRTool):
+    """Base class for running external CLI scripts"""
+
+    def __init__(self, config_path="config.json"):
+        super().__init__(config_path)
+        self.result_message = ""
+        self.script_path = None
+        self.default_args = []
+
+    def set_script_path(self, script_path):
+        """Set the path to the CLI script"""
+        self.script_path = script_path
+
+    def set_default_args(self, args):
+        """Set default arguments for the script"""
+        self.default_args = args
+
+    def run_script(self, input_path, output_path=None, extra_args=None):
+        """Run the CLI script with given parameters"""
+        try:
+            if not self.script_path or not os.path.exists(self.script_path):
+                self.log(f"❌ Script not found: {self.script_path}")
+                return False
+
+            # Build command
+            cmd = ["python", self.script_path]
+
+            # Add default arguments
+            cmd.extend(self.default_args)
+
+            # Add input path
+            cmd.append(input_path)
+
+            # Add output path if provided
+            if output_path:
+                cmd.append(output_path)
+
+            # Add extra arguments if provided
+            if extra_args:
+                cmd.extend(extra_args)
+
+            self.log(f"🔄 Running: {' '.join(cmd)}")
+
+            # Execute script
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                encoding='utf-8'
+            )
+
+            if result.returncode == 0:
+                self.log(f"✅ Script executed successfully")
+                if result.stdout:
+                    self.log(f"📋 Output: {result.stdout.strip()}")
+                return True
+            else:
+                self.log(f"❌ Script failed with code {result.returncode}")
+                if result.stderr:
+                    self.log(f"💬 Error: {result.stderr.strip()}")
+                return False
+
+        except Exception as e:
+            self.log(f"❌ Error running script: {str(e)}")
+            return False
+
+    def run_script_on_file(self, input_file, output_file=None, extra_args=None):
+        """Run script on a single file"""
+        if not os.path.exists(input_file):
+            self.log(f"❌ Input file not found: {input_file}")
+            return False
+
+        return self.run_script(input_file, output_file, extra_args)
+
+    def run_script_on_directory(self, input_dir, output_dir=None, input_extension=".lu", output_extension=None,
+                                extra_args=None):
+        """Run script on all files in directory with given input extension, convert to output extension"""
+        try:
+            if not os.path.exists(input_dir):
+                self.log(f"❌ Input directory not found: {input_dir}")
+                return False
+
+            # If output extension not specified, use same as input
+            if output_extension is None:
+                output_extension = input_extension
+
+            # Find all files with specified extension
+            files_to_process = []
+            for root, dirs, files in os.walk(input_dir):
+                for file in files:
+                    if file.lower().endswith(input_extension.lower()):
+                        files_to_process.append(os.path.join(root, file))
+
+            if not files_to_process:
+                self.log(f"❌ No {input_extension} files found in {input_dir}")
+                return False
+
+            total_files = len(files_to_process)
+            self.log(f"📁 Found {total_files} {input_extension} files to process")
+
+            # Create output directory if specified
+            if output_dir:
+                os.makedirs(output_dir, exist_ok=True)
+
+            # Process files
+            processed_count = 0
+            failed_count = 0
+
+            for input_file in files_to_process:
+                # Determine output file path with correct extension
+                output_file = None
+                if output_dir:
+                    relative_path = os.path.relpath(input_file, input_dir)
+                    # Change file extension
+                    base_name = os.path.splitext(relative_path)[0]
+                    output_file = os.path.join(output_dir, base_name + output_extension)
+                    # Ensure output directory exists
+                    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+
+                # Run script on file
+                success = self.run_script_on_file(input_file, output_file, extra_args)
+
+                if success:
+                    processed_count += 1
+                else:
+                    failed_count += 1
+
+                # Update progress
+                if self.progress_callback:
+                    progress = int((processed_count + failed_count) / total_files * 100)
+                    self.progress_callback(progress)
+
+            # Report results
+            self.log(f"✅ Processing completed: {processed_count}/{total_files} successful")
+            if failed_count > 0:
+                self.log(f"❌ Failed: {failed_count} files")
+
+            self.result_message = f"Processed {processed_count}/{total_files} files"
+            return processed_count > 0
+
+        except Exception as e:
+            self.log(f"❌ Error processing directory: {str(e)}")
+            return False
+
+    @abstractmethod
+    def run(self):
+        """Abstract method to be implemented by subclasses"""
+        pass
+
+    def message(self):
+        return self.result_message
+
+
+class ASMLu(CLScript):
+    """Assemble ASM → LU (ASM to Lua bytecode)"""
+
+    def __init__(self, config_path="config.json"):
+        super().__init__(config_path)
+
+        # Set path to asm_lu.py script
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        asm_script_path = os.path.join(script_dir, "scripts", "ASM", "asm_lu.py")
+        self.set_script_path(asm_script_path)
+
+    def run(self):
+        """Run ASM to LU compilation on input directory"""
+        input_dir = self.paths['asm']  # 6_INPUT - source ASM files
+        output_dir = self.paths['output']  # 7_OUTPUT - compiled LU files
+
+        self.log("🔧 Starting ASM to LU compilation...")
+
+        # Run script on all .asm files in input directory, convert to .lu
+        success = self.run_script_on_directory(
+            input_dir=input_dir,
+            output_dir=output_dir,
+            input_extension=".asm",
+            output_extension=".lu"
+        )
+
+        if success:
+            self.log("✅ ASM to LU compilation completed")
+        else:
+            self.log("❌ ASM to LU compilation failed")
+class DisASMLu(CLScript):
+    """Disassemble LU → ASM (Lua bytecode to ASM)"""
+
+    def __init__(self, config_path="config.json"):
+        super().__init__(config_path)
+
+        # Set path to disasm_lu.py script
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        disasm_script_path = os.path.join(script_dir, "scripts", "ASM", "disasm_lu.py")
+        self.set_script_path(disasm_script_path)
+
+        # Set default arguments for disassembly (show constants)
+        self.set_default_args(["-c"])
+
+    def run(self):
+        """Run LU to ASM disassembly on input directory"""
+        input_dir = self.paths['input']  # 6_INPUT - source LU files
+        output_dir = self.paths['asm']  # 7_OUTPUT - disassembled ASM files
+
+        self.log("🔧 Starting LU to ASM disassembly...")
+
+        # Run script on all .lu files in input directory, convert to .asm
+        success = self.run_script_on_directory(
+            input_dir=input_dir,
+            output_dir=output_dir,
+            input_extension=".lu",
+            output_extension=".asm"
+        )
+
+        if success:
+            self.log("✅ LU to ASM disassembly completed")
+        else:
+            self.log("❌ LU to ASM disassembly failed")
+# class ASMLu_All(CLScript):
+#     """Assemble ASM → LU for all files (from editing to lu)"""
+#
+#     def __init__(self, config_path="config.json"):
+#         super().__init__(config_path)
+#
+#         # Set path to asm_lu.py script
+#         script_dir = os.path.dirname(os.path.abspath(__file__))
+#         asm_script_path = os.path.join(script_dir, "scripts", "ASM", "asm_lu.py")
+#         self.set_script_path(asm_script_path)
+#
+#     def run(self):
+#         """Run ASM to LU compilation on editing directory"""
+#         input_dir = self.paths['editing']  # 5_EDITING - source ASM files
+#         output_dir = self.paths['lu']  # 3_LU - compiled LU files
+#
+#         self.log("🔧 Starting bulk ASM to LU compilation...")
+#
+#         # Run script on all .asm files in editing directory, convert to .lu
+#         success = self.run_script_on_directory(
+#             input_dir=input_dir,
+#             output_dir=output_dir,
+#             input_extension=".asm",
+#             output_extension=".lu"
+#         )
+#
+#         if success:
+#             self.log("✅ Bulk ASM to LU compilation completed")
+#         else:
+#             self.log("❌ Bulk ASM to LU compilation failed")
+# class DisASMLu_All(CLScript):
+#     """Disassemble LU → ASM for all files (from lu to editing)"""
+#
+#     def __init__(self, config_path="config.json"):
+#         super().__init__(config_path)
+#
+#         # Set path to disasm_lu.py script
+#         script_dir = os.path.dirname(os.path.abspath(__file__))
+#         disasm_script_path = os.path.join(script_dir, "scripts", "ASM", "disasm_lu.py")
+#         self.set_script_path(disasm_script_path)
+#
+#         # Set default arguments for disassembly (show constants)
+#         self.set_default_args(["-c"])
+#
+#     def run(self):
+#         """Run LU to ASM disassembly on lu directory"""
+#         input_dir = self.paths['lu']  # 3_LU - source LU files
+#         output_dir = self.paths['editing']  # 5_EDITING - disassembled ASM files
+#
+#         self.log("🔧 Starting bulk LU to ASM disassembly...")
+#
+#         # Run script on all .lu files in lu directory, convert to .asm
+#         success = self.run_script_on_directory(
+#             input_dir=input_dir,
+#             output_dir=output_dir,
+#             input_extension=".lu",
+#             output_extension=".asm"
+#         )
+#
+#         if success:
+#             self.log("✅ Bulk LU to ASM disassembly completed")
+#         else:
+#             self.log("❌ Bulk LU to ASM disassembly failed")
