@@ -34,7 +34,7 @@ def get_latest_info():
 
 
 def download_file_from_github(filepath, dest_folder="."):
-    """Скачать конкретный файл"""
+    """Download file from GitHub"""
     url = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}/{filepath}"
     dest_path = os.path.join(dest_folder, filepath)
 
@@ -49,9 +49,9 @@ def download_file_from_github(filepath, dest_folder="."):
 
 
 def download_folder_from_github(folder_path, dest_folder="."):
-    """Рекурсивно скачать всю папку с GitHub"""
+    """Downlad folder from GitHub"""
     try:
-        # Используем GitHub API для получения содержимого папки
+        # Use GitHub API to get folder content
         api_url = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/contents/{folder_path}?ref={BRANCH}"
 
         with urllib.request.urlopen(api_url) as response:
@@ -59,20 +59,20 @@ def download_folder_from_github(folder_path, dest_folder="."):
 
         success = True
         for item in contents:
-            # ЗАМЕНА: используем прямые слеши для GitHub raw URL
+            # Change \ with /
             item_path = f"{folder_path}/{item['name']}"
 
             if item['type'] == 'file':
-                # Скачиваем файл
+                # Сdownload file
                 if not download_file_from_github(item_path, dest_folder):
                     print(f"⚠️ Skipping file: {item_path} (not found)")
-                    # Не отмечаем как ошибку, продолжаем скачивание
+                    # Continue downloading
 
             elif item['type'] == 'dir':
-                # Рекурсивно скачиваем подпапку
+                # download subfolder with recursion
                 download_folder_from_github(item_path, dest_folder)
 
-        return True  # Всегда возвращаем True, даже если некоторые файлы не скачались
+        return True  # return True even if smth not downloaded
 
     except Exception as e:
         print(f"❌ Failed to download folder {folder_path}: {e}")
@@ -96,16 +96,16 @@ def update_project():
 
     latest_version = latest_info.get("version", current_version)
 
-    # Сравниваем версии как числа
+    # Compare versions as number
     current_parts = list(map(int, current_version.split('.')))
     latest_parts = list(map(int, latest_version.split('.')))
 
-    # Заполняем нулями если версии разной длины
+    # fill with 0 if necessary
     max_len = max(len(current_parts), len(latest_parts))
     current_parts.extend([0] * (max_len - len(current_parts)))
     latest_parts.extend([0] * (max_len - len(latest_parts)))
 
-    # Проверяем нужно ли обновление
+    # Check if updates needed
     needs_update = False
     for i in range(max_len):
         if latest_parts[i] > current_parts[i]:
@@ -131,10 +131,10 @@ def update_project():
             print(f"🔍 Processing: {item}")
 
             if item.endswith('/'):
-                # Это папка - скачиваем рекурсивно
-                folder_name = item[:-1]  # Убираем trailing slash
+                # If folder
+                folder_name = item[:-1]  # Remove trailing slash
                 if download_folder_from_github(folder_name, tmp_dir):
-                    # Копируем папку из временной директории
+                    # Copy from temp folder
                     src_path = os.path.join(tmp_dir, folder_name)
                     dest_path = folder_name
 
@@ -146,23 +146,23 @@ def update_project():
                     print(f"❌ Failed to update folder: {item}")
 
             else:
-                # Это файл
+                # else - file
                 if download_file_from_github(item, tmp_dir):
                     src_path = os.path.join(tmp_dir, item)
                     dest_path = item
 
-                    # ИСПРАВЛЕНИЕ: Проверяем что папка не пустая
+                    # Check folder not empty
                     dest_dir = os.path.dirname(dest_path)
-                    if dest_dir:  # Только если есть подпапки
+                    if dest_dir:  # if subfolders exist
                         os.makedirs(dest_dir, exist_ok=True)
 
-                    # Копируем файл
+                    # copy file
                     shutil.copy2(src_path, dest_path)
                     print(f"✅ {item} updated")
                 else:
                     print(f"❌ Failed to update file: {item}")
 
-        # Обновляем версию в config
+        # Refresh version
         config_path = "config.json"
         try:
             if os.path.exists(config_path):
