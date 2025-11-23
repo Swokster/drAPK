@@ -1,5 +1,5 @@
 {
-  "version": "0.0.6",
+  "version": "0.0.7",
   "updated_files": [
     "main.py",
     "config_manager.py",
@@ -7,6 +7,7 @@
     "config.json",
     "GUI.py",
     "start.bat",
+    "updater.py",
     "scripts/"
   ]
 }
