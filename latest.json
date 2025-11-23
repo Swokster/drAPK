@@ -2,12 +2,11 @@
   "version": "0.0.5",
   "updated_files": [
     "main.py",
-    "updater.py",
     "config_manager.py",
     "drtool.py",
     "config.json",
     "GUI.py",
-    "scripts/",
-    "start.bat"
+    "start.bat",
+    "scripts/"
   ]
 }

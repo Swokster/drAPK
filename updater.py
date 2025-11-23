@@ -8,9 +8,10 @@ from tkinter import messagebox
 
 GITHUB_USER = "Swokster"
 GITHUB_REPO = "drAPK"
-BRANCH = "master"  # или "master"
+BRANCH = "master"
 
 LATEST_URL = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}/latest.json"
+
 
 def get_current_version(config_path="config.json"):
     if not os.path.exists(config_path):
@@ -22,6 +23,7 @@ def get_current_version(config_path="config.json"):
     except Exception:
         return "0.0.0"
 
+
 def get_latest_info():
     try:
         with urllib.request.urlopen(LATEST_URL) as r:
@@ -30,9 +32,11 @@ def get_latest_info():
         print(f"⚠️ Unable to check updates: {e}")
         return None
 
-def download_file_from_github(filename, dest_folder="."):
-    url = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}/{filename}"
-    dest_path = os.path.join(dest_folder, filename)
+
+def download_file_from_github(filepath, dest_folder="."):
+    """Скачать конкретный файл"""
+    url = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{BRANCH}/{filepath}"
+    dest_path = os.path.join(dest_folder, filepath)
 
     try:
         os.makedirs(os.path.dirname(dest_path), exist_ok=True)
@@ -40,13 +44,14 @@ def download_file_from_github(filename, dest_folder="."):
             out_file.write(response.read())
         return True
     except Exception as e:
-        print(f"❌ Failed to download {filename}: {e}")
+        print(f"❌ Failed to download {filepath}: {e}")
         return False
 
+
 def download_folder_from_github(folder_path, dest_folder="."):
-    """Download folder from github"""
+    """Рекурсивно скачать всю папку с GitHub"""
     try:
-        # Use github api to get folder content
+        # Используем GitHub API для получения содержимого папки
         api_url = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/contents/{folder_path}?ref={BRANCH}"
 
         with urllib.request.urlopen(api_url) as response:
@@ -57,7 +62,7 @@ def download_folder_from_github(folder_path, dest_folder="."):
             item_path = os.path.join(folder_path, item['name'])
 
             if item['type'] == 'file':
-                # download file
+                # Скачиваем файл
                 if not download_file_from_github(item_path, dest_folder):
                     success = False
                     print(f"❌ Failed to download file: {item_path}")
@@ -65,7 +70,7 @@ def download_folder_from_github(folder_path, dest_folder="."):
                     print(f"✔ {item_path} downloaded")
 
             elif item['type'] == 'dir':
-                # Recursive folder check
+                # Рекурсивно скачиваем подпапку
                 if not download_folder_from_github(item_path, dest_folder):
                     success = False
 
@@ -75,9 +80,10 @@ def download_folder_from_github(folder_path, dest_folder="."):
         print(f"❌ Failed to download folder {folder_path}: {e}")
         return False
 
+
 def ask_user_update(current_version, latest_version):
     root = tk.Tk()
-    root.withdraw()  # hide main window
+    root.withdraw()
     message = f"New version available: {latest_version}\nCurrent version: {current_version}\n\nUpdate now?"
     result = messagebox.askyesno("Update Available", message)
     root.destroy()
@@ -93,16 +99,16 @@ def update_project():
 
     latest_version = latest_info.get("version", current_version)
 
-    # compare as number
+    # Сравниваем версии как числа
     current_parts = list(map(int, current_version.split('.')))
     latest_parts = list(map(int, latest_version.split('.')))
 
-    # Fill with 0
+    # Заполняем нулями если версии разной длины
     max_len = max(len(current_parts), len(latest_parts))
     current_parts.extend([0] * (max_len - len(current_parts)))
     latest_parts.extend([0] * (max_len - len(latest_parts)))
 
-    # check if update is necessary
+    # Проверяем нужно ли обновление
     needs_update = False
     for i in range(max_len):
         if latest_parts[i] > current_parts[i]:
@@ -128,10 +134,10 @@ def update_project():
             print(f"🔍 Processing: {item}")
 
             if item.endswith('/'):
-                # foler
-                folder_name = item[:-1]  # remove /
+                # Это папка - скачиваем рекурсивно
+                folder_name = item[:-1]  # Убираем trailing slash
                 if download_folder_from_github(folder_name, tmp_dir):
-                    # copy folder from temp dir
+                    # Копируем папку из временной директории
                     src_path = os.path.join(tmp_dir, folder_name)
                     dest_path = folder_name
 
@@ -143,21 +149,21 @@ def update_project():
                     print(f"❌ Failed to update folder: {item}")
 
             else:
-                # file
+                # Это файл
                 if download_file_from_github(item, tmp_dir):
                     src_path = os.path.join(tmp_dir, item)
                     dest_path = item
 
-                    # Check if folder exist
+                    # Убедимся что папка назначения существует
                     os.makedirs(os.path.dirname(dest_path), exist_ok=True)
 
-                    # Copy file
+                    # Копируем файл
                     shutil.copy2(src_path, dest_path)
                     print(f"✅ {item} updated")
                 else:
                     print(f"❌ Failed to update file: {item}")
 
-        # Refresh version in config
+        # Обновляем версию в config
         config_path = "config.json"
         try:
             if os.path.exists(config_path):
