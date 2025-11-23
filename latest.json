@@ -3,6 +3,7 @@
   "updated_files": [
     "main.py",
     "config_manager.py",
+    "config.json",
     "drtool.py",
     "GUI.py",
     "start.bat",
