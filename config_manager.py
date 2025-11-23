@@ -590,6 +590,49 @@ class ConfigManager:
         root = self._get_root()
         messagebox.showinfo("Config", message, parent=root)
 
+    def auto_discover_tools(self, module_name, exclude_classes=None):
+        """Автоматически обнаруживает все классы инструментов из указанного модуля"""
+        if exclude_classes is None:
+            exclude_classes = ['BaseTool', 'APKTool', 'DRTool', 'UnluacBase', 'LuacBase', 'UTF8Decoder', 'CLScript']
+
+        try:
+            # Динамический импорт модуля
+            module = __import__(module_name)
+
+            # Получаем все классы из модуля
+            tool_classes = []
+            for name in dir(module):
+                obj = getattr(module, name)
+                if (isinstance(obj, type) and
+                        obj.__module__ == module_name and
+                        name not in exclude_classes):
+                    tool_classes.append(name)
+
+            # Получаем текущие настройки tool_arguments
+            tool_arguments = self.get("tool_arguments", {})
+
+            # Добавляем отсутствующие классы
+            updated = False
+            for tool_class in tool_classes:
+                if tool_class not in tool_arguments:
+                    tool_arguments[tool_class] = []
+                    updated = True
+                    self.log_message(f"🔍 Автоматически добавлен инструмент: {tool_class}")
+
+            # Сохраняем если были изменения
+            if updated:
+                self.set("tool_arguments", tool_arguments)
+                self.log_message(f"✅ Конфиг tool_arguments обновлен (модуль: {module_name})")
+
+            return tool_classes
+
+        except ImportError as e:
+            self.log_message(f"❌ Модуль {module_name} не найден: {e}")
+            return []
+        except Exception as e:
+            self.log_message(f"❌ Ошибка автоматического обнаружения инструментов: {e}")
+            return []
+
     # Initial setup
     def is_initial_start_required(self):
         """Check if initial setup is required"""

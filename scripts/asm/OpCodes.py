@@ -122,6 +122,11 @@ class A0sBx(OpCode):
         sbx = args[0] + 131071
         return i + (sbx<<14)
 
+    def adjust(self, code, adj):    # используется для внесения поправок в jmp при разделении if
+        assert self.name == 'jmp'
+        sbx = (code >> 14) + adj
+        return (code & 0x3F) + (sbx << 14)
+
 # ----------------- ----------------- ----------------- -----------------
 
 class OpMove(ABC0):

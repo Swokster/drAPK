@@ -63,6 +63,31 @@ class DemoGUI:
                 utf8_tool.set_log_callback(self.log_message)
                 utf8_tool.cli(args)  # Pass arguments to CLI method
 
+            case "disasm":
+                if not args:
+                    # Показать текущие аргументы
+                    current_args = self.cfg.get("tool_arguments", {}).get("DisASMLu", [])
+                    self.log_message(f"📋 DisASMLu args: {current_args if current_args else 'None'}")
+                elif args == "?":
+                    # Справка
+                    self.log_message("🔧 DisASMLu commands:")
+                    self.log_message("  disasm        - show current args")
+                    self.log_message("  disasm reset  - reset args")
+                    self.log_message("  disasm -s     - set argument")
+                    self.log_message("  disasm ?      - this help")
+                elif args == "reset":
+                    # Сброс аргументов
+                    tool_args = self.cfg.get("tool_arguments", {})
+                    tool_args["DisASMLu"] = []
+                    self.cfg.set("tool_arguments", tool_args)
+                    self.log_message("✅ DisASMLu args reset")
+                else:
+                    # Установка аргумента
+                    tool_args = self.cfg.get("tool_arguments", {})
+                    tool_args["DisASMLu"] = [args.strip()]
+                    self.cfg.set("tool_arguments", tool_args)
+                    self.log_message(f"✅ DisASMLu arg set: {args}")
+
             case _:
                 self.log_message(f"Unknown command: {command}")
                 self.log_message("Enter 'help' to get list of available commands")

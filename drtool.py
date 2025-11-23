@@ -69,6 +69,29 @@ class BaseTool(ABC):
             folder_structure = self.cfg.get("folder_structure", {})
             self.paths = {key: '' for key in folder_structure.keys()}
 
+    def get_args(self, base_args=None):
+        """Combine base arguments with config arguments"""
+        all_args = []
+
+        # Add base arguments first
+        if base_args:
+            if isinstance(base_args, str):
+                all_args.extend(base_args.split())
+            elif isinstance(base_args, list):
+                all_args.extend(base_args)
+
+        # Then add args from config
+        tool_name = self.__class__.__name__
+        config_arguments = self.cfg.get("tool_arguments", {}).get(tool_name, [])
+
+        if config_arguments:
+            if isinstance(config_arguments, str):
+                all_args.extend(config_arguments.split())
+            elif isinstance(config_arguments, list):
+                all_args.extend(config_arguments)
+
+        return " ".join(all_args) if all_args else ""
+
     def set_reload_callback(self, callback):
         self.reload_callback = callback
 
@@ -101,9 +124,9 @@ class BaseTool(ABC):
     def run(self):
         pass
 
-    @abstractmethod
-    def message(self):
-        pass
+    # @abstractmethod
+    # def message(self):
+    #     pass
 
 class DRTool(BaseTool):
     """Base Class for DayR Tools (Corona Archiver, Unluac, Luac)"""
@@ -112,7 +135,7 @@ class DRTool(BaseTool):
 class APKTool(BaseTool):
     """Base class for APK operations"""
     pass
-
+# Class to start CLI scripts
 
 # APKTool Classes
 class UnAPK(APKTool):
@@ -1668,7 +1691,7 @@ class LuacBase(DRTool):
     def __init__(self, config_path="config.json"):
         super().__init__(config_path)
         self.result_message = ""
-        self.luac_path = self.cfg.get("luac")  # Теперь путь из конфига
+        self.luac_path = self.cfg.get("luac")
 
     def get_input_output_paths(self):
         """Method to be overridden in child classes"""
@@ -2058,280 +2081,210 @@ class UTF8Decoder_INPUT_to_OUTPUT(UTF8Decoder):
         return self.paths['input'], self.paths['output']
 #endregion
 
-class CLScript(DRTool):
-    """Base class for running external CLI scripts"""
+#ASM
+class CLScript:
+    """Static class for running CLI commands in background threads"""
 
-    def __init__(self, config_path="config.json"):
-        super().__init__(config_path)
-        self.result_message = ""
-        self.script_path = None
-        self.default_args = []
-
-    def set_script_path(self, script_path):
-        """Set the path to the CLI script"""
-        self.script_path = script_path
-
-    def set_default_args(self, args):
-        """Set default arguments for the script"""
-        self.default_args = args
-
-    def run_script(self, input_path, output_path=None, extra_args=None):
-        """Run the CLI script with given parameters"""
+    @staticmethod
+    def run_command(cmd):
+        """Execute command and return result message"""
         try:
-            if not self.script_path or not os.path.exists(self.script_path):
-                self.log(f"❌ Script not found: {self.script_path}")
-                return False
+            # Get subprocess flags for current platform
+            flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
 
-            # Build command
-            cmd = ["python", self.script_path]
-
-            # Add default arguments
-            cmd.extend(self.default_args)
-
-            # Add input path
-            cmd.append(input_path)
-
-            # Add output path if provided
-            if output_path:
-                cmd.append(output_path)
-
-            # Add extra arguments if provided
-            if extra_args:
-                cmd.extend(extra_args)
-
-            self.log(f"🔄 Running: {' '.join(cmd)}")
-
-            # Execute script
             result = subprocess.run(
                 cmd,
+                shell=True,
                 capture_output=True,
                 text=True,
-                encoding='utf-8'
+                encoding='utf-8',
+                creationflags=flags,
+                timeout=30
             )
 
             if result.returncode == 0:
-                self.log(f"✅ Script executed successfully")
-                if result.stdout:
-                    self.log(f"📋 Output: {result.stdout.strip()}")
-                return True
+                return None  # success - no error
             else:
-                self.log(f"❌ Script failed with code {result.returncode}")
-                if result.stderr:
-                    self.log(f"💬 Error: {result.stderr.strip()}")
-                return False
+                error_msg = result.stderr.strip() if result.stderr else "Unknown error"
+                return f"error:{error_msg}"
 
+        except subprocess.TimeoutExpired:
+            return "error:Command timeout"
         except Exception as e:
-            self.log(f"❌ Error running script: {str(e)}")
-            return False
+            return f"error:{str(e)}"
+class DisASMLu(BaseTool):
+    def __init__(self, config_path="config.json"):
+        super().__init__(config_path)
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        script_name = "disasm_lu.py"
+        base_args = "-c"
+        self._args = self.get_args(base_args)
+        self.script_path = os.path.join(script_dir, "scripts", "ASM", script_name)
 
-    def run_script_on_file(self, input_file, output_file=None, extra_args=None):
-        """Run script on a single file"""
-        if not os.path.exists(input_file):
-            self.log(f"❌ Input file not found: {input_file}")
-            return False
+    def run(self):
+        """Run disassembly on all .lu files - abstract method implementation"""
+        thread = threading.Thread(target=self._process_files_threaded)
+        thread.daemon = True
+        thread.start()
 
-        return self.run_script(input_file, output_file, extra_args)
-
-    def run_script_on_directory(self, input_dir, output_dir=None, input_extension=".lu", output_extension=None,
-                                extra_args=None):
-        """Run script on all files in directory with given input extension, convert to output extension"""
+    def _process_files_threaded(self):
+        """Process files with thread pool"""
         try:
-            if not os.path.exists(input_dir):
-                self.log(f"❌ Input directory not found: {input_dir}")
-                return False
+            input_dir = self.paths['input']
+            output_dir = self.paths['output']
 
-            # If output extension not specified, use same as input
-            if output_extension is None:
-                output_extension = input_extension
-
-            # Find all files with specified extension
-            files_to_process = []
+            # All file search
+            lu_files = []
             for root, dirs, files in os.walk(input_dir):
                 for file in files:
-                    if file.lower().endswith(input_extension.lower()):
-                        files_to_process.append(os.path.join(root, file))
+                    if file.lower().endswith('.lu'):
+                        lu_files.append(os.path.join(root, file))
 
-            if not files_to_process:
-                self.log(f"❌ No {input_extension} files found in {input_dir}")
-                return False
+            total_files = len(lu_files)
+            if total_files == 0:
+                self.log("❌ No .lu files found")
+                return
 
-            total_files = len(files_to_process)
-            self.log(f"📁 Found {total_files} {input_extension} files to process")
+            self.log(f"🔧 Starting LU to ASM disassembly with argumet {self._args} for {total_files} files...")
+            os.makedirs(output_dir, exist_ok=True)
 
-            # Create output directory if specified
-            if output_dir:
-                os.makedirs(output_dir, exist_ok=True)
-
-            # Process files
+            success_count = 0
             processed_count = 0
-            failed_count = 0
+            lock = threading.Lock()  # Safely access to counter
 
-            for input_file in files_to_process:
-                # Determine output file path with correct extension
-                output_file = None
-                if output_dir:
+            def process_single_file(input_file):
+                nonlocal success_count, processed_count
+
+                try:
+                    # get output path
                     relative_path = os.path.relpath(input_file, input_dir)
-                    # Change file extension
                     base_name = os.path.splitext(relative_path)[0]
-                    output_file = os.path.join(output_dir, base_name + output_extension)
-                    # Ensure output directory exists
+                    output_file = os.path.join(output_dir, base_name + ".asm")
                     os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
-                # Run script on file
-                success = self.run_script_on_file(input_file, output_file, extra_args)
+                    # get command
+                    cmd = f'python "{self.script_path}" {str(self._args)} "{input_file}" "{output_file}"'
 
-                if success:
-                    processed_count += 1
-                else:
-                    failed_count += 1
+                    # run command
+                    result = CLScript.run_command(cmd)
 
-                # Update progress
-                if self.progress_callback:
-                    progress = int((processed_count + failed_count) / total_files * 100)
-                    self.progress_callback(progress)
+                    with lock:
+                        processed_count += 1
 
-            # Report results
-            self.log(f"✅ Processing completed: {processed_count}/{total_files} successful")
-            if failed_count > 0:
-                self.log(f"❌ Failed: {failed_count} files")
+                        # refresh progress
+                        if self.progress_callback:
+                            progress = int((processed_count / total_files) * 100)
+                            self.progress_callback(progress)
 
-            self.result_message = f"Processed {processed_count}/{total_files} files"
-            return processed_count > 0
+                        if result and result.startswith("error:"):
+                            error_msg = result[6:]
+                            self.log(f"❌ Failed {os.path.basename(input_file)}: {error_msg}")
+                        else:
+                            success_count += 1
+
+                except Exception as e:
+                    with lock:
+                        processed_count += 1
+                        self.log(f"❌ Error processing {os.path.basename(input_file)}: {str(e)}")
+
+            # Start in pull
+            max_workers = min(len(lu_files), os.cpu_count() * 2)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                list(executor.map(process_single_file, lu_files))
+
+            self.log(f"✅ {success_count}/{total_files} files converted successfully")
 
         except Exception as e:
-            self.log(f"❌ Error processing directory: {str(e)}")
-            return False
-
-    @abstractmethod
-    def run(self):
-        """Abstract method to be implemented by subclasses"""
-        pass
+            self.log(f"❌ Processing error: {str(e)}")
+        finally:
+            if self.progress_callback:
+                self.progress_callback(0)
 
     def message(self):
-        return self.result_message
-class ASMLu(CLScript):
-    """Assemble ASM → LU (ASM to Lua bytecode)"""
-
+        return "LU to ASM disassembly completed"
+class ASMLu(BaseTool):
     def __init__(self, config_path="config.json"):
         super().__init__(config_path)
-
-        # Set path to asm_lu.py script
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        asm_script_path = os.path.join(script_dir, "scripts", "ASM", "asm_lu.py")
-        self.set_script_path(asm_script_path)
+        self.script_path = os.path.join(script_dir, "scripts", "ASM", "asm_lu.py")
 
     def run(self):
-        """Run ASM to LU compilation on input directory"""
-        input_dir = self.paths['asm']  # 6_INPUT - source ASM files
-        output_dir = self.paths['output']  # 7_OUTPUT - compiled LU files
+        """Run assembly on all .asm files - abstract method implementation"""
+        thread = threading.Thread(target=self._process_files_threaded)
+        thread.daemon = True
+        thread.start()
 
-        self.log("🔧 Starting ASM to LU compilation...")
+    def _process_files_threaded(self):
+        """Process files with thread pool"""
+        try:
+            input_dir = self.paths['input']
+            output_dir = self.paths['output']
 
-        # Run script on all .asm files in input directory, convert to .lu
-        success = self.run_script_on_directory(
-            input_dir=input_dir,
-            output_dir=output_dir,
-            input_extension=".asm",
-            output_extension=".lu"
-        )
+            # Search files
+            asm_files = []
+            for root, dirs, files in os.walk(input_dir):
+                for file in files:
+                    if file.lower().endswith('.asm'):
+                        asm_files.append(os.path.join(root, file))
 
-        if success:
-            self.log("✅ ASM to LU compilation completed")
-        else:
-            self.log("❌ ASM to LU compilation failed")
-class DisASMLu(CLScript):
-    """Disassemble LU → ASM (Lua bytecode to ASM)"""
+            total_files = len(asm_files)
+            if total_files == 0:
+                self.log("❌ No .asm files found")
+                return
 
-    def __init__(self, config_path="config.json"):
-        super().__init__(config_path)
+            self.log(f"🔧 Starting ASM to LU compilation for {total_files} files...")
+            os.makedirs(output_dir, exist_ok=True)
 
-        # Set path to disasm_lu.py script
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        disasm_script_path = os.path.join(script_dir, "scripts", "ASM", "disasm_lu.py")
-        self.set_script_path(disasm_script_path)
+            success_count = 0
+            processed_count = 0
+            lock = threading.Lock()
 
-        # Set default arguments for disassembly (show constants)
-        self.set_default_args(["-c"])
+            def process_single_file(input_file):
+                nonlocal success_count, processed_count
 
-    def run(self):
-        """Run LU to ASM disassembly on input directory"""
-        input_dir = self.paths['input']  # 6_INPUT - source LU files
-        output_dir = self.paths['asm']  # 7_OUTPUT - disassembled ASM files
+                try:
+                    # Get output path and cmd
+                    relative_path = os.path.relpath(input_file, input_dir)
+                    base_name = os.path.splitext(relative_path)[0]
+                    output_file = os.path.join(output_dir, base_name + ".lu")
+                    os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
-        self.log("🔧 Starting LU to ASM disassembly...")
+                    cmd = f'python "{self.script_path}" "{input_file}" "{output_file}"'
 
-        # Run script on all .lu files in input directory, convert to .asm
-        success = self.run_script_on_directory(
-            input_dir=input_dir,
-            output_dir=output_dir,
-            input_extension=".lu",
-            output_extension=".asm"
-        )
+                    # run command
+                    result = CLScript.run_command(cmd)
 
-        if success:
-            self.log("✅ LU to ASM disassembly completed")
-        else:
-            self.log("❌ LU to ASM disassembly failed")
-# class ASMLu_All(CLScript):
-#     """Assemble ASM → LU for all files (from editing to lu)"""
-#
-#     def __init__(self, config_path="config.json"):
-#         super().__init__(config_path)
-#
-#         # Set path to asm_lu.py script
-#         script_dir = os.path.dirname(os.path.abspath(__file__))
-#         asm_script_path = os.path.join(script_dir, "scripts", "ASM", "asm_lu.py")
-#         self.set_script_path(asm_script_path)
-#
-#     def run(self):
-#         """Run ASM to LU compilation on editing directory"""
-#         input_dir = self.paths['editing']  # 5_EDITING - source ASM files
-#         output_dir = self.paths['lu']  # 3_LU - compiled LU files
-#
-#         self.log("🔧 Starting bulk ASM to LU compilation...")
-#
-#         # Run script on all .asm files in editing directory, convert to .lu
-#         success = self.run_script_on_directory(
-#             input_dir=input_dir,
-#             output_dir=output_dir,
-#             input_extension=".asm",
-#             output_extension=".lu"
-#         )
-#
-#         if success:
-#             self.log("✅ Bulk ASM to LU compilation completed")
-#         else:
-#             self.log("❌ Bulk ASM to LU compilation failed")
-# class DisASMLu_All(CLScript):
-#     """Disassemble LU → ASM for all files (from lu to editing)"""
-#
-#     def __init__(self, config_path="config.json"):
-#         super().__init__(config_path)
-#
-#         # Set path to disasm_lu.py script
-#         script_dir = os.path.dirname(os.path.abspath(__file__))
-#         disasm_script_path = os.path.join(script_dir, "scripts", "ASM", "disasm_lu.py")
-#         self.set_script_path(disasm_script_path)
-#
-#         # Set default arguments for disassembly (show constants)
-#         self.set_default_args(["-c"])
-#
-#     def run(self):
-#         """Run LU to ASM disassembly on lu directory"""
-#         input_dir = self.paths['lu']  # 3_LU - source LU files
-#         output_dir = self.paths['editing']  # 5_EDITING - disassembled ASM files
-#
-#         self.log("🔧 Starting bulk LU to ASM disassembly...")
-#
-#         # Run script on all .lu files in lu directory, convert to .asm
-#         success = self.run_script_on_directory(
-#             input_dir=input_dir,
-#             output_dir=output_dir,
-#             input_extension=".lu",
-#             output_extension=".asm"
-#         )
-#
-#         if success:
-#             self.log("✅ Bulk LU to ASM disassembly completed")
-#         else:
-#             self.log("❌ Bulk LU to ASM disassembly failed")
+                    with lock:
+                        processed_count += 1
+
+                        # Refresh progress
+                        if self.progress_callback:
+                            progress = int((processed_count / total_files) * 100)
+                            self.progress_callback(progress)
+
+                        if result and result.startswith("error:"):
+                            error_msg = result[6:]
+                            self.log(f"❌ Failed {os.path.basename(input_file)}: {error_msg}")
+                        else:
+                            success_count += 1
+
+                except Exception as e:
+                    with lock:
+                        processed_count += 1
+                        self.log(f"❌ Error processing {os.path.basename(input_file)}: {str(e)}")
+
+            # Process in pull
+            max_workers = min(len(asm_files), os.cpu_count() * 2)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                list(executor.map(process_single_file, asm_files))
+
+            self.log(f"✅ {success_count}/{total_files} files compiled successfully")
+
+        except Exception as e:
+            self.log(f"❌ Processing error: {str(e)}")
+        finally:
+            if self.progress_callback:
+                self.progress_callback(0)
+
+    def message(self):
+        return "ASM to LU compilation completed"

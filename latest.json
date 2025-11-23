@@ -1,9 +1,12 @@
 {
-  "version": "0.0.3",
+  "version": "0.0.4",
   "updated_files": [
     "main.py",
     "config_manager.py",
     "drtool.py",
-    "config.json"
+    "config.json",
+    "GUI.py",
+    "scripts/",
+    "start.bat"
   ]
 }
