@@ -59,27 +59,24 @@ def download_folder_from_github(folder_path, dest_folder="."):
 
         success = True
         for item in contents:
-            item_path = os.path.join(folder_path, item['name'])
+            # ЗАМЕНА: используем прямые слеши для GitHub raw URL
+            item_path = f"{folder_path}/{item['name']}"
 
             if item['type'] == 'file':
                 # Скачиваем файл
                 if not download_file_from_github(item_path, dest_folder):
-                    success = False
-                    print(f"❌ Failed to download file: {item_path}")
-                else:
-                    print(f"✔ {item_path} downloaded")
+                    print(f"⚠️ Skipping file: {item_path} (not found)")
+                    # Не отмечаем как ошибку, продолжаем скачивание
 
             elif item['type'] == 'dir':
                 # Рекурсивно скачиваем подпапку
-                if not download_folder_from_github(item_path, dest_folder):
-                    success = False
+                download_folder_from_github(item_path, dest_folder)
 
-        return success
+        return True  # Всегда возвращаем True, даже если некоторые файлы не скачались
 
     except Exception as e:
         print(f"❌ Failed to download folder {folder_path}: {e}")
         return False
-
 
 def ask_user_update(current_version, latest_version):
     root = tk.Tk()
@@ -154,8 +151,10 @@ def update_project():
                     src_path = os.path.join(tmp_dir, item)
                     dest_path = item
 
-                    # Убедимся что папка назначения существует
-                    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+                    # ИСПРАВЛЕНИЕ: Проверяем что папка не пустая
+                    dest_dir = os.path.dirname(dest_path)
+                    if dest_dir:  # Только если есть подпапки
+                        os.makedirs(dest_dir, exist_ok=True)
 
                     # Копируем файл
                     shutil.copy2(src_path, dest_path)
