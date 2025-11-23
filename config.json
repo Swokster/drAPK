@@ -1,131 +1,131 @@
 {
-    "initial_start": false,
-    "version": "0.0.4",
-    "versions_dir": "",
-    "java": "D:\\drAPK\\utils\\JDK/jdk-17.0.16+8/bin/java.exe",
-    "apktool": "D:\\drAPK\\utils\\APKTool\\apktool_2.12.1.jar",
-    "apksigner": "D:\\drAPK\\utils\\AndroidSDK/build-tools/34.0.0/apksigner.bat",
-    "zipalign": "D:\\drAPK\\utils\\AndroidSDK/build-tools/34.0.0/zipalign.exe",
-    "corona-archiver": "D:\\drAPK\\utils\\Corona_Archiver/corona-archiver-master/corona-archiver.py",
-    "unluac": "D:\\drAPK\\utils\\Unluac\\unluacv1.2.2.jar",
-    "luac": "D:\\drAPK\\utils\\Luac/luac.exe",
-    "last_version": "",
-    "last_keystore": "",
-    "last_keystore_password": "",
-    "last_alias": "",
-    "buttons_shape": [
-        3,
-        5
-    ],
-    "folder_structure": {
-        "apk": "1 APK",
-        "apk_unpacked": "2 APK_unpacked",
-        "lu": "3 LU",
-        "lua": "4 LUA",
-        "editing": "5 EDITING",
-        "input": "6 INPUT",
-        "output": "7 OUTPUT",
-        "backup": "8 BackUp",
-        "asm": "9 ASM",
-        "temp": "10 Temp"
+  "initial_start": false,
+  "version": "0.0.4",
+  "versions_dir": "",
+  "java": "D:\\drAPK\\utils\\JDK/jdk-17.0.16+8/bin/java.exe",
+  "apktool": "D:\\drAPK\\utils\\APKTool\\apktool_2.12.1.jar",
+  "apksigner": "D:\\drAPK\\utils\\AndroidSDK/build-tools/34.0.0/apksigner.bat",
+  "zipalign": "D:\\drAPK\\utils\\AndroidSDK/build-tools/34.0.0/zipalign.exe",
+  "corona-archiver": "D:\\drAPK\\utils\\Corona_Archiver/corona-archiver-master/corona-archiver.py",
+  "unluac": "D:\\drAPK\\utils\\Unluac\\unluacv1.2.2.jar",
+  "luac": "D:\\drAPK\\utils\\Luac/luac.exe",
+  "last_version": "",
+  "last_keystore": "",
+  "last_keystore_password": "",
+  "last_alias": "",
+  "buttons_shape": [
+    3,
+    5
+  ],
+  "folder_structure": {
+    "apk": "1 APK",
+    "apk_unpacked": "2 APK_unpacked",
+    "lu": "3 LU",
+    "lua": "4 LUA",
+    "editing": "5 EDITING",
+    "input": "6 INPUT",
+    "output": "7 OUTPUT",
+    "backup": "8 BackUp",
+    "asm": "9 ASM",
+    "temp": "10 Temp"
+  },
+  "bindings": [
+    {
+      "button": 1,
+      "tool": "UnAPK",
+      "name": "Unpack\nAPK",
+      "description": "Unpacking APK to 'unpacked' folder"
     },
-    "bindings": [
-        {
-            "button": 1,
-            "tool": "UnAPK",
-            "name": "Unpack\nAPK",
-            "description": "Unpacking APK to 'unpacked' folder"
-        },
-        {
-            "button": 2,
-            "tool": "deCAR",
-            "name": "Decompile\nresource.car",
-            "description": "Decompile resource.car from assets to 'lu'"
-        },
-        {
-            "button": 3,
-            "tool": "Unluac_All",
-            "name": "Unluac\nLU",
-            "description": "Use Unluac for all files in 'lu'"
-        },
-        {
-            "button": 4,
-            "tool": "Unluac",
-            "name": "Unluac\nINPUT",
-            "description": "Use Unluac for all files in 'input'"
-        },
-        {
-            "button": 6,
-            "tool": "Pack",
-            "name": "Pack\nSign",
-            "description": "Packing files form 'unpacked' to APK and sign"
-        },
-        {
-            "button": 7,
-            "tool": "ToCAR",
-            "name": "Compile\nresource.car",
-            "description": "Compile 'lu' files to assets/resource.car"
-        },
-        {
-            "button": 8,
-            "tool": "Luac_All",
-            "name": "Luac\nEDITING",
-            "description": "Luac all files in 'edditing'"
-        },
-        {
-            "button": 9,
-            "tool": "Luac",
-            "name": "Luac\nINPUT",
-            "description": "Luac all files in 'input'"
-        },
-        {
-            "button": 5,
-            "tool": "DisASMLu",
-            "name": "Input(Lu)\nAsm",
-            "description": "LU -> ASM"
-        },
-        {
-            "button": 10,
-            "tool": "ASMLu",
-            "name": "Asm\nOUTPUT(Lu)",
-            "description": "ASM -> LU"
-        },
-        {
-            "button": 11,
-            "tool": "UTF8Decoder_INPUT_to_OUTPUT",
-            "name": "UTF8\nInput",
-            "description": "Decode UTF-8 'input' -> 'output'"
-        }
-    ],
-    "tool_arguments": {
-        "DisASMLu": []
+    {
+      "button": 2,
+      "tool": "deCAR",
+      "name": "Decompile\nresource.car",
+      "description": "Decompile resource.car from assets to 'lu'"
     },
-    "themes": {
-        "light": {
-            "name": "Light",
-            "background": "#FFFFFF",
-            "text_color": "#000000",
-            "button_text": "#000000",
-            "scroll_text": "#000000"
-        },
-        "dark": {
-            "name": "Dark",
-            "background": "#2B2B2B",
-            "text_color": "#FFFFFF",
-            "button_text": "#FFFFFF",
-            "scroll_text": "#CCCCCC"
-        },
-        "custom": {
-            "name": "Custom",
-            "background": "#1E3A5F",
-            "text_color": "#FFFFFF",
-            "button_text": "#FFFFFF",
-            "scroll_text": "#E0E0E0"
-        }
+    {
+      "button": 3,
+      "tool": "Unluac_All",
+      "name": "Unluac\nLU",
+      "description": "Use Unluac for all files in 'lu'"
     },
-    "current_theme": "light",
-    "font": {
-        "family": "Arial",
-        "size": 10
+    {
+      "button": 4,
+      "tool": "Unluac",
+      "name": "Unluac\nINPUT",
+      "description": "Use Unluac for all files in 'input'"
+    },
+    {
+      "button": 6,
+      "tool": "Pack",
+      "name": "Pack\nSign",
+      "description": "Packing files form 'unpacked' to APK and sign"
+    },
+    {
+      "button": 7,
+      "tool": "ToCAR",
+      "name": "Compile\nresource.car",
+      "description": "Compile 'lu' files to assets/resource.car"
+    },
+    {
+      "button": 8,
+      "tool": "Luac_All",
+      "name": "Luac\nEDITING",
+      "description": "Luac all files in 'edditing'"
+    },
+    {
+      "button": 9,
+      "tool": "Luac",
+      "name": "Luac\nINPUT",
+      "description": "Luac all files in 'input'"
+    },
+    {
+      "button": 5,
+      "tool": "DisASMLu",
+      "name": "Input(Lu)\nAsm",
+      "description": "LU -> ASM"
+    },
+    {
+      "button": 10,
+      "tool": "ASMLu",
+      "name": "Asm\nOUTPUT(Lu)",
+      "description": "ASM -> LU"
+    },
+    {
+      "button": 11,
+      "tool": "UTF8Decoder_INPUT_to_OUTPUT",
+      "name": "UTF8\nInput",
+      "description": "Decode UTF-8 'input' -> 'output'"
     }
+  ],
+  "tool_arguments": {
+    "DisASMLu": []
+  },
+  "themes": {
+    "light": {
+      "name": "Light",
+      "background": "#FFFFFF",
+      "text_color": "#000000",
+      "button_text": "#000000",
+      "scroll_text": "#000000"
+    },
+    "dark": {
+      "name": "Dark",
+      "background": "#2B2B2B",
+      "text_color": "#FFFFFF",
+      "button_text": "#FFFFFF",
+      "scroll_text": "#CCCCCC"
+    },
+    "custom": {
+      "name": "Custom",
+      "background": "#1E3A5F",
+      "text_color": "#FFFFFF",
+      "button_text": "#FFFFFF",
+      "scroll_text": "#E0E0E0"
+    }
+  },
+  "current_theme": "light",
+  "font": {
+    "family": "Arial",
+    "size": 10
+  }
 }
