@@ -4,7 +4,6 @@
     "main.py",
     "config_manager.py",
     "drtool.py",
-    "config.json",
     "GUI.py",
     "start.bat",
     "updater.py",
